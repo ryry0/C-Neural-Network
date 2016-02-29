@@ -4,7 +4,7 @@ HEAD_EXT=h
 OBJ_HEAD_EXT=gch
 CC=gcc
 CFLAGS=-c -I. -std=c11
-LDFLAGS=
+LDFLAGS=-lm
 DFLAGS=-DDEBUG -ggdb -g3 -Wall
 DEFAULT_DEBUG=y
 
