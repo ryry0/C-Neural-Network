@@ -1,4 +1,7 @@
-//Need a better random number generator
+//refactor code:
+//pass random function? use pcg random function
+//pass activation function?
+//implement simd
 
 #ifndef _NN_H_
 #define _NN_H_
@@ -27,13 +30,14 @@ typedef struct neural_network_t {
  *  layers
  * initializes weights to random numbers
  */
-bool initNNet(neural_network_t* n_net, size_t num_layers, size_t* nodes_per_layer);
+bool initNNet(neural_network_t* n_net, size_t num_layers,
+    size_t* const nodes_per_layer);
 
 //applies stochastic gradient descent on the network.
-bool trainNNet(neural_network_t* n_net, long epochs, size_t layers);
+bool trainNNet(neural_network_t* n_net, long epochs);
 
 //runs net input -> output for classification
-bool feedForwardNNet(neural_network_t* n_net);
+void feedForwardNNet(double* const data, neural_network_t* n_net);
 
 bool destroyNNet(neural_network_t* n_net);
 

@@ -13,9 +13,6 @@ inline double sigmoid(double z)  {
   return 1.0/(1.0+exp(-z));
 }
 
-//refactor code:
-//pass random function? use pcg random function
-//pass activation function?
 bool initNNet(neural_network_t * n_net, size_t num_layers,
     size_t * neurons_per_layer) {
 
@@ -45,7 +42,7 @@ bool initNNet(neural_network_t * n_net, size_t num_layers,
       (double **) malloc(neurons_per_layer[i] * sizeof(double*));
 
     n_net->layers_[i].weights_per_neuron_ = //set weights per neuron
-      n_net->layers_[i-1].num_neurons_;
+      n_net->layers_[i-1].num_neurons_;     //to num neurons in prev layer
 
 
     //for every neuron j in layer allocate and init weights + biases
@@ -90,13 +87,40 @@ bool destroyNNet(neural_network_t* n_net) {
   free(n_net->layers_); //free array of layers
 
   return true;
-}
+} //end destroyNNet
 
 //applies stochastic gradient descent on the network.
-bool trainNNet(neural_network_t* n_net, long epochs, size_t layers) {
-
+bool trainNNet(neural_network_t* n_net, const long epochs) {
   return true;
 }
+
+//feedforward will only take the first layer num_nodes_ worth from data arr
+//classification will be returned in the final output layer
+void feedForwardNNet(double* const data; neural_network_t* n_net) {
+
+  //assign data to first layer of network
+  for (size_t i = 0; i < n_net->layers_[0].num_neurons_; i++) {
+    n_net->layers_[0].outputs_[i] = data[i];
+  }
+
+  //optimize here sse/threads
+  for (size_t i = 1; i < n_net->num_layers_; i++) { //for each layer
+    for (size_t j = 0; j < n_net->layers_[i].num_neurons_; j++) { //for nodes
+
+      //dot product
+      double sum = 0;
+
+      for (size_t k = 0; k < n_net->layers_[i].weights_per_neuron_; k++) {
+        sum += n_net->layers_[i].weights_[j][k] *
+          n_net->layers_[i-1].outputs_[k];
+      }
+
+      //calculate neuron j output
+      n_net->layers_[i].outputs_[j] =
+        sigmoid(sum + n_net->layers_[i].biases_[j]);
+    }
+  }
+} //end feedForwardNNet
 
 //from Knuth and Marsaglia
 double genRandGauss() {

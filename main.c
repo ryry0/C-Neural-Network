@@ -13,7 +13,9 @@ int main(int argc, char ** argv) {
   initNNet(&neural_net, NUM_LAYERS, layer_sizes);
 
   //train neural net
+
   //destroy neural net
   destroyNNet(&neural_net);
+
   return 0;
 }
