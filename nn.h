@@ -2,21 +2,18 @@
 
 #ifndef _NN_H_
 #define _NN_H_
+
 #include <math.h>    //for math functions
 #include <time.h>    //for seeding time
 #include <stdbool.h> //for bools
 #include <stdlib.h>  //for random
 
-typedef struct nn_neuron_t {
-  double bias_;
-  size_t num_weights_;
-  double* weights_; //array of input weights depends on # neurons
-  double output_;
-} nn_neuron_t;
-
 typedef struct nn_layer_t {
   size_t num_neurons_;
-  nn_neuron_t* neurons_;
+  size_t weights_per_neuron_;
+  double* biases_;
+  double** weights_; //2d array rows for each neuron
+  double* outputs_;
 } nn_layer_t;
 
 typedef struct neural_network_t {

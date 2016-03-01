@@ -1,6 +1,5 @@
 #include <nn.h>
 
-
 inline double softplus(double z) {
   return log(1.0 + exp(z));
 }
@@ -15,7 +14,7 @@ inline double sigmoid(double z)  {
 }
 
 //refactor code:
-//pass random function?
+//pass random function? use pcg random function
 //pass activation function?
 bool initNNet(neural_network_t * n_net, size_t num_layers,
     size_t * neurons_per_layer) {
@@ -33,30 +32,35 @@ bool initNNet(neural_network_t * n_net, size_t num_layers,
 
     n_net->layers_[i].num_neurons_ = neurons_per_layer[i]; //set num neurons
 
-    n_net->layers_[i].neurons_ =
-      (nn_neuron_t *) malloc(neurons_per_layer[i] * sizeof(nn_neuron_t));
+    n_net->layers_[i].outputs_ = //allocate outputs
+      (double *) malloc(neurons_per_layer[i] * sizeof(double));
 
-    if (i < 1) //skip allocating + initing weights for the first layer
+    if (i < 1) //skip allocating + initing weights + biases for the first layer
       continue;
 
-    //for every neuron in layer allocate weights
+    n_net->layers_[i].biases_ = //allocate biases
+      (double *) malloc(neurons_per_layer[i] * sizeof(double));
+
+    n_net->layers_[i].weights_ = //allocate weights
+      (double **) malloc(neurons_per_layer[i] * sizeof(double*));
+
+    n_net->layers_[i].weights_per_neuron_ = //set weights per neuron
+      n_net->layers_[i-1].num_neurons_;
+
+
+    //for every neuron j in layer allocate and init weights + biases
     for (size_t j = 0; j < n_net->layers_[i].num_neurons_ ; j++) {
+      n_net->layers_[i].biases_[j] = genRandGauss();
 
-      //allocate weights depending on number of neurons in prev layer
-      //ith layer jth neuron
-      size_t num_weights =
-      n_net->layers_[i].neurons_[j].num_weights_ = n_net->layers_[i-1].num_neurons_;
+      //num weights depend on size of previous layer
+      n_net->layers_[i].weights_[j] =
+        (double *) malloc(n_net->layers_[i].weights_per_neuron_ *
+            sizeof(double));
 
-      n_net->layers_[i].neurons_[j].weights_ =
-        (double *) malloc(n_net->layers_[i-1].num_neurons_ * sizeof(double));
-
-      n_net->layers_[i].neurons_[j].bias_ = genRandGauss();
-
-      //init each weight
-      for (size_t k = 0; k < num_weights; k++) {
-        n_net->layers_[i].neurons_[j].weights_[k] = genRandGauss();
-      } //end for each weight
-
+      //initialize k weights for the particular neuron, j
+      for (size_t k = 0; k < n_net->layers_[i].weights_per_neuron_; k++) {
+        n_net->layers_[i].weights_[j][k] = genRandGauss();
+      }
     } //end for each neuron
   } //end for each layer
 
@@ -69,16 +73,18 @@ bool destroyNNet(neural_network_t* n_net) {
     return false;
 
   for (size_t i = 0; i < n_net->num_layers_; i++) {
+    free(n_net->layers_[i].outputs_); //free array of biases
+
+    if (i < 1) //no need to free biases and weights for first layer
+      continue;
+
+    free(n_net->layers_[i].biases_); //free array of biases
+
     for (size_t j = 0; j < n_net->layers_[i].num_neurons_ ; j++) {
-
-        if (i < 1) //no need to free weights for first layer
-          break;
-
-        free(n_net->layers_[i].neurons_[j].weights_); //free array of weights
+          free(n_net->layers_[i].weights_[j]); //free array of weights
     } //end for each neuron
 
-    free(n_net->layers_[i].neurons_); //free array of neurons
-
+    free(n_net->layers_[i].weights_); //free array of weight arrays
   } //end for each layer
 
   free(n_net->layers_); //free array of layers
@@ -89,6 +95,7 @@ bool destroyNNet(neural_network_t* n_net) {
 //applies stochastic gradient descent on the network.
 bool trainNNet(neural_network_t* n_net, long epochs, size_t layers) {
 
+  return true;
 }
 
 //from Knuth and Marsaglia
