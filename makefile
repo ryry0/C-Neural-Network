@@ -53,3 +53,6 @@ run:
 
 test:
 	gdb -tui -q $(EXECUTABLE)
+
+grind:
+	valgrind --leak-check=yes ./$(EXECUTABLE)
