@@ -14,6 +14,7 @@
 #include <stdbool.h> //for bools
 #include <stdlib.h>  //for random
 #include <stdint.h>  //for uint*
+#include <string.h>
 
 typedef struct nn_layer_t {
   size_t num_neurons_;        //num neurons in layer
@@ -21,10 +22,14 @@ typedef struct nn_layer_t {
 
   double* biases_;            //neuron bias
   double* outputs_;           //output of neuron
+  double* weighted_sums_;     //weighted sum of neuron z + bias
   double** weights_;          //2d array rows for each neuron
 
+  double** avg_weight_grads_; //average gradients for every weight
+
   double* errors_;            //neuron error delta
-  double* weighted_sums_;     //weighted sum of neuron z + bias
+  double* avg_errors_;        //stores avg error over a mini batch
+
 } nn_layer_t;
 
 typedef struct neural_network_t {
@@ -68,6 +73,9 @@ bool backProp(neural_network_t* n_net, double* const input,
 void feedForwardNNet(neural_network_t* n_net, double* const input);
 
 bool destroyNNet(neural_network_t* n_net);
+
+//utility function that clears out avg_weight_grads_ and avg_errors_
+void clearBatchAvg(neural_network_t* n_net);
 
 //from knuth and marsaglia
 double genRandGauss();

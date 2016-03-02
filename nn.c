@@ -63,43 +63,56 @@ bool initNNet(neural_network_t * n_net, size_t num_layers,
   //for each layer
   for (size_t i = 0; i < n_net->num_layers_; i++) {
 
-    n_net->layers_[i].num_neurons_ = neurons_per_layer[i]; //set num neurons
+    nn_layer_t * current_layer = &n_net->layers_[i];
 
-    n_net->layers_[i].outputs_ = //allocate outputs
-      (double *) malloc(neurons_per_layer[i] * sizeof(double));
+    current_layer->num_neurons_ = neurons_per_layer[i]; //set num neurons
+
+    current_layer->outputs_ = //allocate outputs
+      (double *) malloc(current_layer->num_neurons_ * sizeof(double));
 
     if (i < 1) //skip allocating + initing weights + biases for the first layer
       continue;
 
 
-    n_net->layers_[i].errors_ = //allocate errors
-      (double *) malloc(neurons_per_layer[i] * sizeof(double));
+    current_layer->errors_ = //allocate errors
+      (double *) malloc(current_layer->num_neurons_ * sizeof(double));
 
-    n_net->layers_[i].biases_ = //allocate biases
-      (double *) malloc(neurons_per_layer[i] * sizeof(double));
+    current_layer->avg_errors_ = //allocate avg errors
+      (double *) malloc(current_layer->num_neurons_ * sizeof(double));
 
-    n_net->layers_[i].weighted_sums_ = //allocate weighted sums
-      (double *) malloc(neurons_per_layer[i] * sizeof(double));
+    current_layer->biases_ = //allocate biases
+      (double *) malloc(current_layer->num_neurons_ * sizeof(double));
 
-    n_net->layers_[i].weights_ = //allocate weights
-      (double **) malloc(neurons_per_layer[i] * sizeof(double*));
+    current_layer->weighted_sums_ = //allocate weighted sums
+      (double *) malloc(current_layer->num_neurons_ * sizeof(double));
 
-    n_net->layers_[i].weights_per_neuron_ = //set weights per neuron
+    current_layer->weights_ = //allocate weights
+      (double **) malloc(current_layer->num_neurons_ * sizeof(double*));
+
+
+    current_layer->avg_weight_grads_ = //allocate weights
+      (double **) malloc(current_layer->num_neurons_ * sizeof(double*));
+
+    current_layer->weights_per_neuron_ = //set weights per neuron
       n_net->layers_[i-1].num_neurons_;     //to num neurons in prev layer
 
 
     //for every neuron j in layer allocate and init weights + biases
-    for (size_t j = 0; j < n_net->layers_[i].num_neurons_ ; j++) {
-      n_net->layers_[i].biases_[j] = genRandGauss();
+    for (size_t j = 0; j < current_layer->num_neurons_ ; j++) {
+      current_layer->biases_[j] = genRandGauss();
 
       //num weights depend on size of previous layer
-      n_net->layers_[i].weights_[j] =
-        (double *) malloc(n_net->layers_[i].weights_per_neuron_ *
+      current_layer->weights_[j] =
+        (double *) malloc(current_layer->weights_per_neuron_ *
+            sizeof(double));
+
+      current_layer->avg_weight_grads_[j] =
+        (double *) malloc(current_layer->weights_per_neuron_ *
             sizeof(double));
 
       //initialize k weights for the particular neuron, j
-      for (size_t k = 0; k < n_net->layers_[i].weights_per_neuron_; k++) {
-        n_net->layers_[i].weights_[j][k] = genRandGauss();
+      for (size_t k = 0; k < current_layer->weights_per_neuron_; k++) {
+        current_layer->weights_[j][k] = genRandGauss();
       }
     } //end for each neuron
   } //end for each layer
@@ -123,13 +136,16 @@ bool destroyNNet(neural_network_t* n_net) {
 
     free(n_net->layers_[i].biases_); //free array of biases
     free(n_net->layers_[i].errors_); //free array of errors_
+    free(n_net->layers_[i].avg_errors_); //free array of errors_
     free(n_net->layers_[i].weighted_sums_); //free array of errors_
 
     for (size_t j = 0; j < n_net->layers_[i].num_neurons_ ; j++) {
           free(n_net->layers_[i].weights_[j]); //free array of weights
+          free(n_net->layers_[i].avg_weight_grads_[j]); //free weight gradients
     } //end for each neuron
 
     free(n_net->layers_[i].weights_); //free array of weight arrays
+    free(n_net->layers_[i].avg_weight_grads_);
   } //end for each layer
 
   free(n_net->layers_); //free array of layers
@@ -138,9 +154,30 @@ bool destroyNNet(neural_network_t* n_net) {
 } //end destroyNNet
 
 /*-----------------------------------------------------------------------*/
+/*                         CLEAR BATCH AVERAGES                          */
+/*-----------------------------------------------------------------------*/
+//utility function that clears out avg_weight_grads_ and avg_errors_
+void clearBatchAvg(neural_network_t* n_net) {
+
+  for (size_t i = 1; i < n_net->num_layers_; i++) {
+    nn_layer_t * current_layer = &n_net->layers_[i];
+
+    memset(current_layer->avg_errors_, 0, current_layer->num_neurons_ *
+        sizeof(double));
+
+    for(size_t j = 0; j < current_layer->num_neurons_; j++) {
+      memset(current_layer->avg_weight_grads_[j], 0,
+          current_layer->weights_per_neuron_ * sizeof(double));
+    }
+  }
+}
+
+
+/*-----------------------------------------------------------------------*/
 /*                      STOCHASTIC GRADIENT DESCENT                      */
 /*-----------------------------------------------------------------------*/
 //applies stochastic gradient descent on the network.
+//SO INEFFICIENT ;-----;
 bool sgdNNet(neural_network_t* n_net, double* const samples,
     size_t num_samples, uint64_t epochs,
     double eta , size_t mini_batch_size) {
@@ -150,6 +187,9 @@ bool sgdNNet(neural_network_t* n_net, double* const samples,
 
   for(uint64_t i = 0; i < epochs; i++) {
     //TODO:WILL PROBABLY PRODUCE BAD RESULTS IF DATA_SIZE > RAND_MAX
+
+    //clear the average values for the gradients.
+    clearBatchAvg(n_net);
     for (size_t j = 0; j < mini_batch_size; j++) {
       size_t sample_index = rand() % num_samples;
 
@@ -160,13 +200,44 @@ bool sgdNNet(neural_network_t* n_net, double* const samples,
         samples+(n_net->layers_[0].num_neurons_ * sample_index);
 
 
-      //run backprop alg on the sample
+      //run backprop alg on the sample and calculate deltas
       backProp(n_net, current_sample, current_expected);
-      //calculate avg of partial wks and partial b
 
-    }
-    //perform gradient descent on the biases
-    //perform gradient descent on the weights
+      //calculate avg of partial wks and partial b
+      for (size_t k = 1; k < n_net->num_layers_; k++) {
+        nn_layer_t * current_layer = &n_net->layers_[k];
+        nn_layer_t * prev_layer = &n_net->layers_[k-1];
+
+        for (size_t n = 0; n < current_layer->num_neurons_; n++) {
+
+          current_layer->avg_errors_[n] +=
+            current_layer->errors_[n]/(double)mini_batch_size;
+
+          for (size_t m = 0; m < current_layer->weights_per_neuron_; m++) {
+            current_layer->avg_weight_grads_[n][m] +=
+              (current_layer->weights_[n][m] * prev_layer->outputs_[m])/
+              (double)mini_batch_size;
+          }
+        }
+      } //end for each layer
+
+    } //end for mini batch
+
+    //perform gradient descent on the biases and the weights
+    for (size_t k = 1; k < n_net->num_layers_; k++) {
+      nn_layer_t * current_layer = &n_net->layers_[k];
+
+      for (size_t n = 0; n < current_layer->num_neurons_; n++) {
+
+        current_layer->biases_[n] -= eta * current_layer->avg_errors_[n];
+
+        for (size_t m = 0; m < current_layer->weights_per_neuron_; m++) {
+          current_layer->weights_[n][m] -= eta *
+            current_layer->avg_weight_grads_[n][m];
+        }
+      }
+    } //end for each layer
+
   } //end for epochs
 
   return true;
