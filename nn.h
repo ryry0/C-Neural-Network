@@ -58,18 +58,36 @@ bool initNNet(neural_network_t* n_net, size_t num_layers,
  * descent.
  * May want to change this in future to take 2d array
  * Inputs are some multiple of output layer size * num_samples
+ * Verification data is used to check progress of epoch training.
+ * If the pointer passed is null, the verification step is skipped.
  */
-bool sgdNNet(neural_network_t* n_net, double* const samples,
-    double* const expected, size_t num_samples, uint64_t epochs,
-    double eta, size_t mini_batch_size);
+bool sgdNNet(neural_network_t* n_net,
+    double* const samples,
+    double* const expected,
+    size_t num_samples,
+    uint64_t epochs,
+    double eta ,
+    size_t mini_batch_size,
+    double* verif_samples,     //set of things to classify
+    double* verif_expected,  //set of things to compare against
+    size_t num_verif_samples);
+
 /*
  * Given an input and expected output, (and cost function?)
  * calculates the errors in the neural network per node.
  * Should technically output the gradient, and not just the errors, but
  * that's a lot more to store.
  */
-bool backProp(neural_network_t* n_net, double* const input,
+bool backPropNNet(neural_network_t* n_net, double* const input,
     double* const expected);
+
+/*
+ * Verifies the n_net against the verification data
+ */
+void verifyNNet(neural_network_t* n_net,
+    double* const input_data,
+    double* const expected_data,
+    size_t data_size);
 
 //runs net input -> output for classification
 void feedForwardNNet(neural_network_t* n_net, double* const input);

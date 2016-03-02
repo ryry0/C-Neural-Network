@@ -19,6 +19,14 @@ static inline double sigmoidPrime(double z)  {
   return sigmoid(z)*(1-sigmoid(z));
 }
 
+static size_t getmax(double* arr, size_t size) {
+  size_t max = 0;
+
+  for(size_t i = 0; i < size; i++)
+    max = arr[i] > arr[max] ? i : max;
+
+  return max;
+}
 
 //from Knuth and Marsaglia
 double genRandGauss() {
@@ -178,9 +186,16 @@ void clearBatchAvg(neural_network_t* n_net) {
 /*-----------------------------------------------------------------------*/
 //applies stochastic gradient descent on the network.
 //SO INEFFICIENT ;-----;
-bool sgdNNet(neural_network_t* n_net, double* const samples,
-    double* const expected, size_t num_samples, uint64_t epochs,
-    double eta , size_t mini_batch_size) {
+bool sgdNNet(neural_network_t* n_net,
+    double* const samples,
+    double* const expected,
+    size_t num_samples,
+    uint64_t epochs,
+    double eta ,
+    size_t mini_batch_size,
+    double* verif_samples,     //set of things to classify
+    double* verif_expected,  //set of things to compare against
+    size_t num_verif_samples) {
 
   clock_t start, end;
   double cpu_time;
@@ -201,7 +216,7 @@ bool sgdNNet(neural_network_t* n_net, double* const samples,
     for (size_t j = 0; j < mini_batch_size; j++) {
       size_t sample_index = rand() % num_samples;
 
-      printf("rand %ld: %ld\n", j, sample_index);
+      //printf("rand %ld: %ld\n", j, sample_index);
       double* current_sample = //get random sample index
         samples+(n_net->layers_[0].num_neurons_ * sample_index);
 
@@ -211,7 +226,7 @@ bool sgdNNet(neural_network_t* n_net, double* const samples,
 
 
       //run backprop alg on the sample and calculate deltas
-      backProp(n_net, current_sample, current_expected);
+      backPropNNet(n_net, current_sample, current_expected);
 
       //calculate avg of partial wks and partial b
       for (size_t k = 1; k < n_net->num_layers_; k++) {
@@ -248,9 +263,13 @@ bool sgdNNet(neural_network_t* n_net, double* const samples,
       }
     } //end for each layer
 
+
+    if ((verif_samples != NULL) && (verif_expected != NULL))
+      verifyNNet(n_net, verif_samples, verif_expected, num_verif_samples);
+
     end = clock();
     cpu_time = ((double) (end - start))/CLOCKS_PER_SEC; //
-    printf("Epoch %ld %f seconds to complete.\n\n", i, cpu_time);
+    printf("Completed in %f seconds.\n\n", cpu_time);
   } //end for epochs
 
   return true;
@@ -260,7 +279,7 @@ bool sgdNNet(neural_network_t* n_net, double* const samples,
 /*                          BACKPROPAGATION                              */
 /*-----------------------------------------------------------------------*/
 
-bool backProp(neural_network_t* n_net, double* const input,
+bool backPropNNet(neural_network_t* n_net, double* const input,
     double* const expected) {
 
   size_t output_layer = n_net->num_layers_ - 1;
@@ -274,7 +293,7 @@ bool backProp(neural_network_t* n_net, double* const input,
   current_layer = &n_net->layers_[output_layer];
   for(size_t i = 0; i < current_layer->num_neurons_; i++) {
     current_layer->errors_[i] =
-      (expected[i] - current_layer->outputs_[i]) *
+      (current_layer->outputs_[i] - expected[i]) *
       sigmoidPrime(current_layer->weighted_sums_[i]);
   } //(a - y) * s(z) forall neurons
 
@@ -340,4 +359,32 @@ void feedForwardNNet(neural_network_t* n_net, double* const input) {
         sigmoid(current_layer->weighted_sums_[j]);
     }
   } //end for each layer
+} //end feedForwardNNet
+
+/*-----------------------------------------------------------------------*/
+/*                                 VERIFY                                */
+/*-----------------------------------------------------------------------*/
+//will run classification over whole verification data set and print the
+//identification rate
+void verifyNNet(neural_network_t* n_net,
+    double* const input_data,
+    double* const expected_data,
+    size_t data_size) {
+
+  nn_layer_t * first_layer = &n_net->layers_[0];
+  nn_layer_t * output_layer = &n_net->layers_[n_net->num_layers_ -1];
+  size_t num_correct = 0;
+
+  for (size_t sample_index = 0; sample_index < data_size; sample_index++) {
+
+    feedForwardNNet(n_net,
+        input_data + (sample_index * first_layer->num_neurons_));
+
+    if (getmax(output_layer->outputs_, output_layer->num_neurons_) ==
+        getmax(expected_data + (sample_index*output_layer->num_neurons_),
+          output_layer->num_neurons_))
+      num_correct++;
+  }
+  printf("Identified %ld correctly out of %ld.\n", num_correct, data_size);
+  printf("%f %% success rate\n", (float) num_correct/ (float)data_size);
 } //end feedForwardNNet
