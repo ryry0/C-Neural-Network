@@ -190,15 +190,18 @@ bool sgdNNet(neural_network_t* n_net, double* const samples,
 
   for(uint64_t i = 0; i < epochs; i++) {
     //TODO:WILL PROBABLY PRODUCE BAD RESULTS IF DATA_SIZE > RAND_MAX
+    //might get same random number
 
     printf("Epoch %ld of %ld\n", i, epochs);
-
     start = clock();
+
     //clear the average values for the gradients.
     clearBatchAvg(n_net);
+
     for (size_t j = 0; j < mini_batch_size; j++) {
       size_t sample_index = rand() % num_samples;
 
+      printf("rand %ld: %ld\n", j, sample_index);
       double* current_sample = //get random sample index
         samples+(n_net->layers_[0].num_neurons_ * sample_index);
 
@@ -247,7 +250,7 @@ bool sgdNNet(neural_network_t* n_net, double* const samples,
 
     end = clock();
     cpu_time = ((double) (end - start))/CLOCKS_PER_SEC; //
-    printf("Epoch %ld took %f seconds to complete.\n", i, cpu_time);
+    printf("Epoch %ld %f seconds to complete.\n\n", i, cpu_time);
   } //end for epochs
 
   return true;
@@ -303,32 +306,38 @@ bool backProp(neural_network_t* n_net, double* const input,
 //classification will be returned in the final output layer
 void feedForwardNNet(neural_network_t* n_net, double* const input) {
 
+  nn_layer_t * first_layer = &n_net->layers_[0];
+
   //assign data to first layer of network
-  for (size_t i = 0; i < n_net->layers_[0].num_neurons_; i++) {
-    n_net->layers_[0].outputs_[i] = input[i];
+  for (size_t i = 0; i < first_layer->num_neurons_; i++) {
+    first_layer->outputs_[i] = input[i];
   }
+
 
   //optimize here sse/threads
   for (size_t i = 1; i < n_net->num_layers_; i++) { //for each layer
     //optimize this maybe using threads
-    for (size_t j = 0; j < n_net->layers_[i].num_neurons_; j++) { //for nodes
+    nn_layer_t * current_layer = &n_net->layers_[i];
+    nn_layer_t * prev_layer = &n_net->layers_[i-1];
+
+    for (size_t j = 0; j < current_layer->num_neurons_; j++) { //for nodes
 
       //dot product
       double dot_product = 0;
 
       //since trivial use simd extensions
-      for (size_t k = 0; k < n_net->layers_[i].weights_per_neuron_; k++) {
-        dot_product += n_net->layers_[i].weights_[j][k] *
-          n_net->layers_[i-1].outputs_[k];
+      for (size_t k = 0; k < current_layer->weights_per_neuron_; k++) {
+        dot_product += current_layer->weights_[j][k] *
+          prev_layer->outputs_[k];
       }
 
       //calculate weighted sum
-      n_net->layers_[i].weighted_sums_[j] = dot_product +
-        n_net->layers_[i].biases_[j];
+      current_layer->weighted_sums_[j] = dot_product +
+        current_layer->biases_[j];
 
       //calculate neuron j output
-      n_net->layers_[i].outputs_[j] =
-        sigmoid(n_net->layers_[i].weighted_sums_[j]);
+      current_layer->outputs_[j] =
+        sigmoid(current_layer->weighted_sums_[j]);
     }
   } //end for each layer
 } //end feedForwardNNet
