@@ -5,15 +5,19 @@
 #include <nn.h>
 
 #define NUM_LAYERS 3
+#define INPUT_LAYER_SIZE  784 //have to make sure you can map data to inputs
+#define OUTPUT_LAYER_SIZE 10
+
 #define PIC_WIDTH 28
 #define PIC_HEIGHT 28
 #define PICTURE_SIZE 784 //num pixels 28*28
 #define NUM_SAMPLES 50000
 
 #define TRAIN_OFFSET      0x10
-#define TRAIN_LAB_OFFSET  0x08
+#define TRAIN_EXP_OFFSET  0x08
 
-#define OUTPUT_LAYER_SIZE 10
+#define DEFAULT_TRAIN     "data/train-images-idx3-ubyte"
+#define DEFAULT_EXPECT    "data/train-labels-idx1-ubyte"
 
 void printImage(double* const data, size_t index);
 void classify(neural_network_t *n_net, double* const input_data);
@@ -23,21 +27,22 @@ char numToText(double num);
 
 int main(int argc, char ** argv) {
   neural_network_t neural_net;
-  size_t layer_sizes[NUM_LAYERS] = {784,30,OUTPUT_LAYER_SIZE};
+  size_t layer_sizes[NUM_LAYERS] = {INPUT_LAYER_SIZE,30,OUTPUT_LAYER_SIZE};
   //load data
 
   int input_data_fd = 0;
-  int verif_data_fd = 0;
+  int expected_data_fd = 0;
 
   if (argc > 2) {
     input_data_fd = open(argv[1], O_RDONLY);
-    verif_data_fd = open(argv[1], O_RDONLY);
-    if ((verif_data_fd == -1) || (input_data_fd == -1)) {
-      printf("Please provide input data and verification data\n");
-      return 1;
-    }
+    expected_data_fd = open(argv[2], O_RDONLY);
   }
   else {
+    input_data_fd = open(DEFAULT_TRAIN, O_RDONLY);
+    expected_data_fd = open(DEFAULT_EXPECT, O_RDONLY);
+  }
+
+  if ((expected_data_fd == -1) || (input_data_fd == -1)) {
     printf("Please provide input data and verification data\n");
     return 1;
   }
@@ -46,7 +51,7 @@ int main(int argc, char ** argv) {
   double* input_data = (double *)
     malloc(NUM_SAMPLES*PICTURE_SIZE*sizeof(double));
 
-  double* verif_data = (double *)
+  double* expected_data = (double *)
     calloc(NUM_SAMPLES*OUTPUT_LAYER_SIZE,sizeof(double));
 
   //for NNIST data
@@ -54,7 +59,7 @@ int main(int argc, char ** argv) {
   //set output data to first output value
   //should probably mmap the file or something
   lseek(input_data_fd, TRAIN_OFFSET, SEEK_SET);
-  lseek(verif_data_fd, TRAIN_LAB_OFFSET, SEEK_SET);
+  lseek(expected_data_fd, TRAIN_EXP_OFFSET, SEEK_SET);
 
   printf("Copying input data.\n");
   for (size_t i = 0; i < NUM_SAMPLES*PICTURE_SIZE; i++) {
@@ -63,30 +68,32 @@ int main(int argc, char ** argv) {
     input_data[i] = (double) buff;
   }
 
-  printf("Copying verification data and mapping it to vectors.\n");
+  printf("Copying expected data and mapping it to vectors.\n");
   for (size_t i = 0; i < NUM_SAMPLES; i++) {
     uint8_t buff = 0;
-    read(verif_data_fd, &buff, 1);
-    verif_data[(i*OUTPUT_LAYER_SIZE) + (size_t) buff] = 1.0f;
+    read(expected_data_fd, &buff, 1);
+    expected_data[(i*OUTPUT_LAYER_SIZE) + (size_t) buff] = 1.0f;
   }
 
-  //TODO fix this
+  /*
   printf("Checking vectors...\n");
   for (size_t i = 0; i < 20; i++) {
     printf("Vector is: \n");
-    for (size_t k = 0; k < last_layer->num_neurons_; k++)
-      printf("%ld %f\n", i, last_layer->outputs_[i]);
+    for (size_t k = 0; k < OUTPUT_LAYER_SIZE; k++)
+      printf("%ld %f\n", k, expected_data[k + i*OUTPUT_LAYER_SIZE]);
 
     printf("Read back as %ld\n",
-      getmax(verif_data + i*OUTPUT_LAYER_SIZE,
+      getmax(expected_data + i*OUTPUT_LAYER_SIZE,
         OUTPUT_LAYER_SIZE));
+    printf("\n");
   }
+  */
 
   srand(time(NULL));
   initNNet(&neural_net, NUM_LAYERS, layer_sizes);
 
   //train neural net
-  sgdNNet(&neural_net, input_data, verif_data, NUM_SAMPLES, 30, 3.0, 10);
+  sgdNNet(&neural_net, input_data, expected_data, NUM_SAMPLES, 30, 3.0, 10);
 
   printf("Verifying Neural Net\n");
 
@@ -95,10 +102,10 @@ int main(int argc, char ** argv) {
 
   //destroy neural net
   destroyNNet(&neural_net);
-  close(verif_data_fd);
+  close(expected_data_fd);
   close(input_data_fd);
   free(input_data);
-  free(verif_data);
+  free(expected_data);
 
   return 0;
 }
@@ -145,7 +152,6 @@ void classify(neural_network_t *n_net, double* const input_data) {
   printf("Output layer is: \n");
   for (size_t i = 0; i < last_layer->num_neurons_; i++)
     printf("%ld %f\n", i, last_layer->outputs_[i]);
-
   printf("\n");
 
   printf("Classified as %ld\n",
