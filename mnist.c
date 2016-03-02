@@ -81,6 +81,7 @@ int main(int argc, char ** argv) {
 /*------------------------------------------------------------------------*/
 /*           Verifying expected data and representations                  */
 /*------------------------------------------------------------------------*/
+  /*
   printf("Checking verification vectors...\n");
   lseek(expected_data_fd, TRAIN_EXP_OFFSET, SEEK_SET);
 
@@ -91,23 +92,28 @@ int main(int argc, char ** argv) {
     size_t interpreted = 0;
     read(expected_data_fd, &buff, 1);
 
-    //printImage(verif_input_data, i*PICTURE_SIZE);
+    printImage(input_data+i*PICTURE_SIZE,0);
 
     //printf("Vector is: \n");
     //for (size_t k = 0; k < OUTPUT_LAYER_SIZE; k++)
-      //printf("%ld %f\n", k, verif_expected_data[k + i*OUTPUT_LAYER_SIZE]);
+    //  printf("%ld %f\n", k, verif_expected_data[k + i*OUTPUT_LAYER_SIZE]);
 
-    interpreted = getmax(expected_data + i*OUTPUT_LAYER_SIZE, OUTPUT_LAYER_SIZE);
+    //interpreted = getmax(expected_data + i*OUTPUT_LAYER_SIZE, OUTPUT_LAYER_SIZE);
 
-    if (interpreted != buff) {
-      incorrect++;
-    }
+    //if (interpreted != buff) {
+    //  incorrect++;
+    //}
 
     //printf("Read back as %ld\n", interpreted);
     //printf("\n");
   }
   printf("Num incorrect %ld\n", incorrect);
   //printf("First incorrect %ld\n", first_incorrect);
+
+  printImage(input_data + NUM_SAMPLES*PICTURE_SIZE, 0);
+  printf("Label: %ld",
+  getmax(expected_data + NUM_SAMPLES*OUTPUT_LAYER_SIZE, OUTPUT_LAYER_SIZE));
+  */
 
 /*------------------------------------------------------------------------*/
 /*                      Training the neural net                           */
@@ -117,18 +123,16 @@ int main(int argc, char ** argv) {
 
   //train neural net
 
-  /*
-     printf("Printing pre training\n");
+     printf("Preprint\n");
      for(size_t i = 1; i < neural_net.num_layers_; i++) {
-     for (size_t j = 0; j < neural_net.layers_[i].num_neurons_; j++) {
-     printf("layer %ld, errors %ld: %f\n", i, j, neural_net.layers_[i].errors_[j]);
+       for (size_t j = 0; j < neural_net.layers_[i].num_neurons_; j++) {
+         printf("layer %ld, errors %ld: %f\n", i, j,
+             neural_net.layers_[i].avg_errors_[j]);
+       }
+       printf("\n");
      }
-     printf("\n");
-     }
-     */
 
   //sgdNNet(n_net, input, expected, #samples in data, epochs, eta, batch)
-  /*
   sgdNNet(&neural_net,  //n_net
       input_data,       //input
       expected_data,    //expected
@@ -136,27 +140,25 @@ int main(int argc, char ** argv) {
       30,               //epochs
       3.0,              //eta
       10,               //batch size
-      verif_input_data,             //verification input data
-      verif_expected_data,             //verification expected data
+      input_data+NUM_SAMPLES*PICTURE_SIZE,             //verification input data
+      expected_data+NUM_SAMPLES,             //verification expected data
       VERIF_SAMPLES);               //verification sample size
-      */
 
-
-  /*
-     printf("Printing post training\n");
+     printf("Postprint\n");
      for(size_t i = 1; i < neural_net.num_layers_; i++) {
-     for (size_t j = 0; j < neural_net.layers_[i].num_neurons_; j++) {
-     printf("layer %ld, errors %ld: %f\n", i, j, neural_net.layers_[i].errors_[j]);
+       for (size_t j = 0; j < neural_net.layers_[i].num_neurons_; j++) {
+         printf("layer %ld, errors %ld: %f\n", i, j,
+             neural_net.layers_[i].avg_errors_[j]);
+       }
+       printf("\n");
      }
-     printf("\n");
-     }
-     */
 
-  /*
      printf("Verifying Neural Net\n");
-     for(int i = 0; i < 10; i++)
-     classify(&neural_net, (input_data + i*PICTURE_SIZE));
-     */
+     for(size_t i = 0; i < 10; i++) {
+       size_t sample_index = rand() % VERIF_SAMPLES;
+       classify(&neural_net, (input_data + (NUM_SAMPLES+sample_index)*
+             PICTURE_SIZE));
+     }
 
 /*------------------------------------------------------------------------*/
 /*                      Deallocation of resources                         */
@@ -175,9 +177,9 @@ int main(int argc, char ** argv) {
 /*------------------------------------------------------------------------*/
 /*                      Function Definitions                              */
 /*------------------------------------------------------------------------*/
-void printImage(double* const data, size_t index) {
-  for(size_t i = 0; i < PICTURE_SIZE; i++) {
-    printf("%c", numToText(data[i + index*PICTURE_SIZE]));
+void printImage(double* const data, size_t size) {
+  for(size_t i = 0; i < size; i++) {
+    printf("%c", numToText(data[i]));
     if(i % PIC_HEIGHT == 0)
       printf("\n");
   }
@@ -209,9 +211,10 @@ char numToText(double num) {
 }
 
 void classify(neural_network_t *n_net, double* const input_data) {
+
   nn_layer_t * last_layer = &n_net->layers_[n_net->num_layers_-1];
 
-  printImage(input_data, 0);
+  printImage(input_data, PICTURE_SIZE);
   feedForwardNNet(n_net, input_data);
 
   printf("Output layer is: \n");
