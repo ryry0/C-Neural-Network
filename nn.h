@@ -15,6 +15,7 @@
 #include <stdlib.h>  //for random
 #include <stdint.h>  //for uint*
 #include <string.h>
+#include <stdio.h>
 
 typedef struct nn_layer_t {
   size_t num_neurons_;        //num neurons in layer
@@ -56,10 +57,11 @@ bool initNNet(neural_network_t* n_net, size_t num_layers,
  * Takes the errors calculated in backprop to calculate gradient and thus
  * descent.
  * May want to change this in future to take 2d array
+ * Inputs are some multiple of output layer size * num_samples
  */
 bool sgdNNet(neural_network_t* n_net, double* const samples,
-    size_t num_samples, uint64_t epochs, double eta , size_t mini_batch_size);
-
+    double* const expected, size_t num_samples, uint64_t epochs,
+    double eta, size_t mini_batch_size);
 /*
  * Given an input and expected output, (and cost function?)
  * calculates the errors in the neural network per node.

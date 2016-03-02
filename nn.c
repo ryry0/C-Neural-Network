@@ -179,8 +179,11 @@ void clearBatchAvg(neural_network_t* n_net) {
 //applies stochastic gradient descent on the network.
 //SO INEFFICIENT ;-----;
 bool sgdNNet(neural_network_t* n_net, double* const samples,
-    size_t num_samples, uint64_t epochs,
+    double* const expected, size_t num_samples, uint64_t epochs,
     double eta , size_t mini_batch_size) {
+
+  clock_t start, end;
+  double cpu_time;
 
   if (mini_batch_size > num_samples)
     return false;
@@ -188,6 +191,9 @@ bool sgdNNet(neural_network_t* n_net, double* const samples,
   for(uint64_t i = 0; i < epochs; i++) {
     //TODO:WILL PROBABLY PRODUCE BAD RESULTS IF DATA_SIZE > RAND_MAX
 
+    printf("Epoch %ld of %ld\n", i, epochs);
+
+    start = clock();
     //clear the average values for the gradients.
     clearBatchAvg(n_net);
     for (size_t j = 0; j < mini_batch_size; j++) {
@@ -197,7 +203,8 @@ bool sgdNNet(neural_network_t* n_net, double* const samples,
         samples+(n_net->layers_[0].num_neurons_ * sample_index);
 
       double* current_expected = //get random sample index
-        samples+(n_net->layers_[0].num_neurons_ * sample_index);
+        expected+(n_net->layers_[n_net->num_layers_ -1].num_neurons_ *
+          sample_index);
 
 
       //run backprop alg on the sample and calculate deltas
@@ -218,7 +225,7 @@ bool sgdNNet(neural_network_t* n_net, double* const samples,
               (current_layer->weights_[n][m] * prev_layer->outputs_[m])/
               (double)mini_batch_size;
           }
-        }
+        } //end for neurons
       } //end for each layer
 
     } //end for mini batch
@@ -238,6 +245,9 @@ bool sgdNNet(neural_network_t* n_net, double* const samples,
       }
     } //end for each layer
 
+    end = clock();
+    cpu_time = ((double) (end - start))/CLOCKS_PER_SEC; //
+    printf("Epoch %ld took %f seconds to complete.\n", i, cpu_time);
   } //end for epochs
 
   return true;
