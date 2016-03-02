@@ -23,7 +23,7 @@ static inline double sigmoidPrime(double z)  {
 //from Knuth and Marsaglia
 double genRandGauss() {
   static double V1, V2, S;
-  static int phase = 0;
+  static int32_t phase = 0;
   double X;
 
   if(phase == 0) {
@@ -48,6 +48,7 @@ double genRandGauss() {
 /*-----------------------------------------------------------------------*/
 /*                            INIT NNET                                  */
 /*-----------------------------------------------------------------------*/
+//TODO: clarify with intermediate variables
 bool initNNet(neural_network_t * n_net, size_t num_layers,
     size_t * neurons_per_layer) {
 
@@ -70,7 +71,14 @@ bool initNNet(neural_network_t * n_net, size_t num_layers,
     if (i < 1) //skip allocating + initing weights + biases for the first layer
       continue;
 
+
+    n_net->layers_[i].errors_ = //allocate errors
+      (double *) malloc(neurons_per_layer[i] * sizeof(double));
+
     n_net->layers_[i].biases_ = //allocate biases
+      (double *) malloc(neurons_per_layer[i] * sizeof(double));
+
+    n_net->layers_[i].weighted_sums_ = //allocate weighted sums
       (double *) malloc(neurons_per_layer[i] * sizeof(double));
 
     n_net->layers_[i].weights_ = //allocate weights
@@ -114,6 +122,8 @@ bool destroyNNet(neural_network_t* n_net) {
       continue;
 
     free(n_net->layers_[i].biases_); //free array of biases
+    free(n_net->layers_[i].errors_); //free array of errors_
+    free(n_net->layers_[i].weighted_sums_); //free array of errors_
 
     for (size_t j = 0; j < n_net->layers_[i].num_neurons_ ; j++) {
           free(n_net->layers_[i].weights_[j]); //free array of weights
@@ -131,20 +141,32 @@ bool destroyNNet(neural_network_t* n_net) {
 /*                      STOCHASTIC GRADIENT DESCENT                      */
 /*-----------------------------------------------------------------------*/
 //applies stochastic gradient descent on the network.
-bool sgdNNet(double* const data, neural_network_t* n_net, long epochs,
-    double eta, size_t data_size, size_t mini_batch_size) {
+bool sgdNNet(neural_network_t* n_net, double* const samples,
+    size_t num_samples, uint64_t epochs,
+    double eta , size_t mini_batch_size) {
 
-  if (mini_batch_size > data_size)
+  if (mini_batch_size > num_samples)
     return false;
 
-  for(long i = 0; i < epochs; i++) {
+  for(uint64_t i = 0; i < epochs; i++) {
     //TODO:WILL PROBABLY PRODUCE BAD RESULTS IF DATA_SIZE > RAND_MAX
     for (size_t j = 0; j < mini_batch_size; j++) {
+      size_t sample_index = rand() % num_samples;
 
-      double* sample = //get random sample index
-        data+(n_net->layers_[0].num_neurons_ * (rand() % data_size));
+      double* current_sample = //get random sample index
+        samples+(n_net->layers_[0].num_neurons_ * sample_index);
+
+      double* current_expected = //get random sample index
+        samples+(n_net->layers_[0].num_neurons_ * sample_index);
+
+
+      //run backprop alg on the sample
+      backProp(n_net, current_sample, current_expected);
+      //calculate avg of partial wks and partial b
 
     }
+    //perform gradient descent on the biases
+    //perform gradient descent on the weights
   } //end for epochs
 
   return true;
@@ -153,20 +175,56 @@ bool sgdNNet(double* const data, neural_network_t* n_net, long epochs,
 /*-----------------------------------------------------------------------*/
 /*                          BACKPROPAGATION                              */
 /*-----------------------------------------------------------------------*/
-bool backProp(neural_network_t* n_net) {
+
+bool backProp(neural_network_t* n_net, double* const input,
+    double* const expected) {
+
+  size_t output_layer = n_net->num_layers_ - 1;
+  nn_layer_t * current_layer = NULL;
+  nn_layer_t * next_layer = NULL;
+
+  //feedforward
+  feedForwardNNet(n_net, input);
+
+  //calculate errors for output layer per neuron
+  current_layer = &n_net->layers_[output_layer];
+  for(size_t i = 0; i < current_layer->num_neurons_; i++) {
+    current_layer->errors_[i] =
+      (expected[i] - current_layer->outputs_[i]) *
+      sigmoidPrime(current_layer->weighted_sums_[i]);
+  } //(a - y) * s(z) forall neurons
+
+  //backpropagate the errors in (num_layers_ - 2) to layer 1
+  for (size_t i = output_layer - 1; i > 0; i--) {
+    current_layer = &n_net->layers_[i];
+    next_layer = &n_net->layers_[i+1];
+
+    for(size_t j = 0; j < current_layer->num_neurons_; j++) {
+      double dot_product = 0;
+
+      //dot product next layer deltas with their weights
+      for(size_t k = 0; k < next_layer->num_neurons_; k++) {
+        dot_product += next_layer->weights_[k][j] * next_layer->errors_[k];
+      }
+
+      current_layer->errors_[j] = (dot_product) *
+        sigmoidPrime(current_layer->weighted_sums_[j]);
+    }
+  } //end for each layer
+
   return true;
-}
+} //end backProp
 
 /*-----------------------------------------------------------------------*/
 /*                            FEEDFORWARD                                */
 /*-----------------------------------------------------------------------*/
 //feedforward will only take the first layer num_nodes_ worth from data arr
 //classification will be returned in the final output layer
-void feedForwardNNet(double* const data, neural_network_t* n_net) {
+void feedForwardNNet(neural_network_t* n_net, double* const input) {
 
   //assign data to first layer of network
   for (size_t i = 0; i < n_net->layers_[0].num_neurons_; i++) {
-    n_net->layers_[0].outputs_[i] = data[i];
+    n_net->layers_[0].outputs_[i] = input[i];
   }
 
   //optimize here sse/threads
@@ -175,17 +233,21 @@ void feedForwardNNet(double* const data, neural_network_t* n_net) {
     for (size_t j = 0; j < n_net->layers_[i].num_neurons_; j++) { //for nodes
 
       //dot product
-      double sum = 0;
+      double dot_product = 0;
 
       //since trivial use simd extensions
       for (size_t k = 0; k < n_net->layers_[i].weights_per_neuron_; k++) {
-        sum += n_net->layers_[i].weights_[j][k] *
+        dot_product += n_net->layers_[i].weights_[j][k] *
           n_net->layers_[i-1].outputs_[k];
       }
 
+      //calculate weighted sum
+      n_net->layers_[i].weighted_sums_[j] = dot_product +
+        n_net->layers_[i].biases_[j];
+
       //calculate neuron j output
       n_net->layers_[i].outputs_[j] =
-        sigmoid(sum + n_net->layers_[i].biases_[j]);
+        sigmoid(n_net->layers_[i].weighted_sums_[j]);
     }
-  }
+  } //end for each layer
 } //end feedForwardNNet

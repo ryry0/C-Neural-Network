@@ -1,8 +1,10 @@
-//refactor code:
-//pass random function? use pcg random function
-//pass activation function?
-//implement simd
-//full matrix based approach
+/* TODO:
+ * refactor code to be cleaner
+ * pass random function? use pcg random function
+ * pass activation function?
+ * implement simd
+ * full matrix based approach (ch2 of nielsen's book)
+ */
 
 #ifndef _NN_H_
 #define _NN_H_
@@ -11,13 +13,18 @@
 #include <time.h>    //for seeding time
 #include <stdbool.h> //for bools
 #include <stdlib.h>  //for random
+#include <stdint.h>  //for uint*
 
 typedef struct nn_layer_t {
-  size_t num_neurons_;
-  size_t weights_per_neuron_;
-  double* biases_;
-  double** weights_; //2d array rows for each neuron
-  double* outputs_;
+  size_t num_neurons_;        //num neurons in layer
+  size_t weights_per_neuron_; //based on num neurons in prev layer connected
+
+  double* biases_;            //neuron bias
+  double* outputs_;           //output of neuron
+  double** weights_;          //2d array rows for each neuron
+
+  double* errors_;            //neuron error delta
+  double* weighted_sums_;     //weighted sum of neuron z + bias
 } nn_layer_t;
 
 typedef struct neural_network_t {
@@ -35,19 +42,30 @@ bool initNNet(neural_network_t* n_net, size_t num_layers,
     size_t* const nodes_per_layer);
 
 /*
- * applies stochastic gradient descent on the network.
- * epochs is how many mini batches to test
- * data size specifies number of samples in data array
- * assumes data is in one long array.
- * This array must be of size data_size * neurons in first layer
+ * Applies stochastic gradient descent on the network.
+ * Epochs is how many mini batches to test.
+ * num_samples specifies number of samples in input array.
+ * Expected output array must be same size of input array.
+ * Assumes data is in one long array.
+ * This array must be of size data_size * neurons in first layer.
+ * Takes the errors calculated in backprop to calculate gradient and thus
+ * descent.
+ * May want to change this in future to take 2d array
  */
-bool sgdNNet(double* const data, neural_network_t* n_net, long epochs,
-    double eta, size_t data_size, size_t mini_batch_size) {
+bool sgdNNet(neural_network_t* n_net, double* const samples,
+    size_t num_samples, uint64_t epochs, double eta , size_t mini_batch_size);
 
-bool backProp(neural_network_t* n_net);
+/*
+ * Given an input and expected output, (and cost function?)
+ * calculates the errors in the neural network per node.
+ * Should technically output the gradient, and not just the errors, but
+ * that's a lot more to store.
+ */
+bool backProp(neural_network_t* n_net, double* const input,
+    double* const expected);
 
 //runs net input -> output for classification
-void feedForwardNNet(double* const data, neural_network_t* n_net);
+void feedForwardNNet(neural_network_t* n_net, double* const input);
 
 bool destroyNNet(neural_network_t* n_net);
 
