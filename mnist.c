@@ -78,34 +78,34 @@ int main(int argc, char ** argv) {
     expected_data[(i*OUTPUT_LAYER_SIZE) + (size_t) buff] = 1.0f;
   }
 
-/*------------------------------------------------------------------------*/
-/*           Verifying expected data and representations                  */
-/*------------------------------------------------------------------------*/
+  /*------------------------------------------------------------------------*/
+  /*           Verifying expected data and representations                  */
+  /*------------------------------------------------------------------------*/
   /*
-  printf("Checking verification vectors...\n");
-  lseek(expected_data_fd, TRAIN_EXP_OFFSET, SEEK_SET);
+     printf("Checking verification vectors...\n");
+     lseek(expected_data_fd, TRAIN_EXP_OFFSET, SEEK_SET);
 
-  size_t incorrect = 0;
-  size_t first_incorrect = 0;
-  for (size_t i = 0; i < NUM_PICTURES; i++) {
-    uint8_t buff = 0;
-    size_t interpreted = 0;
-    read(expected_data_fd, &buff, 1);
+     size_t incorrect = 0;
+     size_t first_incorrect = 0;
+     for (size_t i = 0; i < NUM_PICTURES; i++) {
+     uint8_t buff = 0;
+     size_t interpreted = 0;
+     read(expected_data_fd, &buff, 1);
 
-    printImage(input_data+i*PICTURE_SIZE,0);
+     printImage(input_data+i*PICTURE_SIZE,0);
 
-    //printf("Vector is: \n");
-    //for (size_t k = 0; k < OUTPUT_LAYER_SIZE; k++)
-    //  printf("%ld %f\n", k, verif_expected_data[k + i*OUTPUT_LAYER_SIZE]);
+  //printf("Vector is: \n");
+  //for (size_t k = 0; k < OUTPUT_LAYER_SIZE; k++)
+  //  printf("%ld %f\n", k, verif_expected_data[k + i*OUTPUT_LAYER_SIZE]);
 
-    //interpreted = getmax(expected_data + i*OUTPUT_LAYER_SIZE, OUTPUT_LAYER_SIZE);
+  //interpreted = getmax(expected_data + i*OUTPUT_LAYER_SIZE, OUTPUT_LAYER_SIZE);
 
-    //if (interpreted != buff) {
-    //  incorrect++;
-    //}
+  //if (interpreted != buff) {
+  //  incorrect++;
+  //}
 
-    //printf("Read back as %ld\n", interpreted);
-    //printf("\n");
+  //printf("Read back as %ld\n", interpreted);
+  //printf("\n");
   }
   printf("Num incorrect %ld\n", incorrect);
   //printf("First incorrect %ld\n", first_incorrect);
@@ -115,22 +115,24 @@ int main(int argc, char ** argv) {
   getmax(expected_data + NUM_SAMPLES*OUTPUT_LAYER_SIZE, OUTPUT_LAYER_SIZE));
   */
 
-/*------------------------------------------------------------------------*/
-/*                      Training the neural net                           */
-/*------------------------------------------------------------------------*/
+  /*------------------------------------------------------------------------*/
+  /*                      Training the neural net                           */
+  /*------------------------------------------------------------------------*/
   srand(time(NULL));
   initNNet(&neural_net, NUM_LAYERS, layer_sizes);
 
   //train neural net
 
-     printf("Preprint\n");
-     for(size_t i = 1; i < neural_net.num_layers_; i++) {
-       for (size_t j = 0; j < neural_net.layers_[i].num_neurons_; j++) {
-         printf("layer %ld, errors %ld: %f\n", i, j,
-             neural_net.layers_[i].avg_errors_[j]);
-       }
-       printf("\n");
-     }
+  /*
+  printf("Preprint\n");
+  for(size_t i = 1; i < neural_net.num_layers_; i++) {
+    for (size_t j = 0; j < neural_net.layers_[i].num_neurons_; j++) {
+      printf("layer %ld, errors %ld: %f\n", i, j,
+          neural_net.layers_[i].avg_errors_[j]);
+    }
+    printf("\n");
+  }
+  */
 
   //sgdNNet(n_net, input, expected, #samples in data, epochs, eta, batch)
   sgdNNet(&neural_net,  //n_net
@@ -144,25 +146,30 @@ int main(int argc, char ** argv) {
       expected_data+NUM_SAMPLES,             //verification expected data
       VERIF_SAMPLES);               //verification sample size
 
-     printf("Postprint\n");
-     for(size_t i = 1; i < neural_net.num_layers_; i++) {
-       for (size_t j = 0; j < neural_net.layers_[i].num_neurons_; j++) {
-         printf("layer %ld, errors %ld: %f\n", i, j,
-             neural_net.layers_[i].avg_errors_[j]);
-       }
-       printf("\n");
-     }
+  /*
+  printf("Postprint\n");
+  for(size_t i = 1; i < neural_net.num_layers_; i++) {
+    for (size_t j = 0; j < neural_net.layers_[i].num_neurons_; j++) {
+      printf("layer %ld, errors %ld: %f\n", i, j,
+          neural_net.layers_[i].avg_errors_[j]);
+    }
+    printf("\n");
+  }
+  */
 
-     printf("Verifying Neural Net\n");
-     for(size_t i = 0; i < 10; i++) {
-       size_t sample_index = rand() % VERIF_SAMPLES;
-       classify(&neural_net, (input_data + (NUM_SAMPLES+sample_index)*
-             PICTURE_SIZE));
-     }
+  printf("Verifying Neural Net\n");
+  for(size_t i = 0; i < 10; i++) {
+    size_t sample_index = rand() % VERIF_SAMPLES;
+    classify(&neural_net, (input_data + (NUM_SAMPLES+sample_index)*
+          PICTURE_SIZE));
+    printf("Expected: %ld\n", getmax(expected_data +
+          (NUM_SAMPLES+sample_index)*OUTPUT_LAYER_SIZE,
+          OUTPUT_LAYER_SIZE));
+  }
 
-/*------------------------------------------------------------------------*/
-/*                      Deallocation of resources                         */
-/*------------------------------------------------------------------------*/
+  /*------------------------------------------------------------------------*/
+  /*                      Deallocation of resources                         */
+  /*------------------------------------------------------------------------*/
   //destroy neural net
   destroyNNet(&neural_net);
   close(expected_data_fd);

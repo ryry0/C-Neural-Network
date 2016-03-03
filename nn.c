@@ -4,19 +4,19 @@
 /*                      MATH FUNCTIONS                                   */
 /*-----------------------------------------------------------------------*/
 inline double softplus(double z) {
-  return log(1.0 + exp(z));
+  return log(1.0f + exp(z));
 }
 
 inline double softmax(double z) {
-  return log(1.0 + exp(z));
+  return log(1.0f + exp(z));
 }
 
-static inline double sigmoid(double z)  {
-  return 1.0/(1.0+exp(-z));
+double sigmoid(double z)  {
+  return 1.0f/(1.0f+exp(-z));
 }
 
-static inline double sigmoidPrime(double z)  {
-  return sigmoid(z)*(1-sigmoid(z));
+double sigmoidPrime(double z)  {
+  return sigmoid(z)*(1.0f-sigmoid(z));
 }
 
 //from Knuth and Marsaglia
@@ -86,10 +86,10 @@ static void printImage(double* const data, size_t size) {
   }
   printf("\n");
 }
+
 /*-----------------------------------------------------------------------*/
 /*                            INIT NNET                                  */
 /*-----------------------------------------------------------------------*/
-//TODO: clarify with intermediate variables
 bool initNNet(neural_network_t * n_net, size_t num_layers,
     size_t * neurons_per_layer) {
 
@@ -224,7 +224,7 @@ bool sgdNNet(neural_network_t* n_net,
     double* const expected,
     size_t num_samples,
     uint64_t epochs,
-    double eta ,
+    double eta,
     size_t mini_batch_size,
     double* verif_samples,     //set of things to classify
     double* verif_expected,  //set of things to compare against
@@ -288,11 +288,11 @@ bool sgdNNet(neural_network_t* n_net,
 
       for (size_t n = 0; n < current_layer->num_neurons_; n++) {
 
-        current_layer->biases_[n] -= (eta/mini_batch_size) *
+        current_layer->biases_[n] -= (eta/(double)mini_batch_size) *
           current_layer->avg_errors_[n];
 
         for (size_t m = 0; m < current_layer->weights_per_neuron_; m++) {
-          current_layer->weights_[n][m] -= (eta/mini_batch_size) *
+          current_layer->weights_[n][m] -= (eta/(double)mini_batch_size) *
             current_layer->avg_weight_grads_[n][m];
         }
       }
@@ -355,6 +355,11 @@ bool backPropNNet(neural_network_t* n_net, double* const input,
 
       current_layer->errors_[j] = (dot_product) *
         sigmoidPrime(current_layer->weighted_sums_[j]);
+
+      /*
+      printf("E:%f\tO:%f\n", current_layer->errors_[j],
+        current_layer->outputs_[j]);
+      */
     }
   } //end for each layer
 

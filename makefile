@@ -48,11 +48,11 @@ clean:
 tags:
 	ctags -R --c++-kinds=+p --fields=+iaS --extra=+q
 
-run:
+run: all
 	./$(EXECUTABLE)
 
-test:
-	gdb -tui -q $(EXECUTABLE)
+test: all
+	gdb -tui -q $(EXECUTABLE) -tty=/dev/pts/2
 
-grind:
+grind: all
 	valgrind --leak-check=yes ./$(EXECUTABLE)
