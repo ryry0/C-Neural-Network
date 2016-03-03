@@ -12,11 +12,11 @@ inline double softmax(double z) {
 }
 
 double sigmoid(double z)  {
-  return 1.0f/(1.0f+exp(-z));
+  return (1000.0f/(1.0f+exp(-z)));
 }
 
 double sigmoidPrime(double z)  {
-  return sigmoid(z)*(1.0f-sigmoid(z));
+  return (1000.0f * exp(-z))/pow(1+exp(-z),2);
 }
 
 //from Knuth and Marsaglia
