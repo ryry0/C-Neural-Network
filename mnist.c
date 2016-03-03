@@ -68,7 +68,7 @@ int main(int argc, char ** argv) {
   for (size_t i = 0; i < NUM_PICTURES*PICTURE_SIZE; i++) {
     uint8_t buff = 0;
     read(input_data_fd, &buff, 1);
-    input_data[i] = (double) buff;
+    input_data[i] = ((double) buff/255.0f);
   }
 
   printf("Copying expected data and mapping it to vectors.\n");
@@ -195,21 +195,21 @@ void printImage(double* const data, size_t size) {
 
 char numToText(double num) {
   char letter = 0;
-  if (num > 229.5)
+  if (num > 229.5/255.0f)
     letter = '@';
-  else if (num > 204)
+  else if (num > 204/255.0f)
     letter = '#';
-  else if (num > 178.5)
+  else if (num > 178.5/255.0f)
     letter = '8';
-  else if (num > 153)
+  else if (num > 153/255.0f)
     letter = '&';
-  else if (num > 127.5)
+  else if (num > 127.5/255.0f)
     letter = 'o';
-  else if (num > 102)
+  else if (num > 102/255.0f)
     letter = ';';
-  else if (num > 76.5)
+  else if (num > 76.5/255.0f)
     letter = '*';
-  else if (num > 51)
+  else if (num > 51/255.0f)
     letter = '.';
   else
     letter = ' ';
