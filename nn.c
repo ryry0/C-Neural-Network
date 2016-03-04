@@ -3,27 +3,27 @@
 /*-----------------------------------------------------------------------*/
 /*                      MATH FUNCTIONS                                   */
 /*-----------------------------------------------------------------------*/
-inline double softplus(double z) {
+inline long double softplus(long double z) {
   return log(1.0f + exp(z));
 }
 
-inline double softmax(double z) {
+inline long double softmax(long double z) {
   return log(1.0f + exp(z));
 }
 
-double sigmoid(double z)  {
+long double sigmoid(long double z)  {
   return 1.0f/(1.0f+exp(-z));
 }
 
-double sigmoidPrime(double z)  {
+long double sigmoidPrime(long double z)  {
   return sigmoid(z)*(1.0f-sigmoid(z));
 }
 
 //from Knuth and Marsaglia
-double genRandGauss() {
+long double genRandGauss() {
   static double V1, V2, S;
   static int32_t phase = 0;
-  double X;
+  long double X;
 
   if(phase == 0) {
     do {
@@ -42,49 +42,6 @@ double genRandGauss() {
   phase = 1 - phase;
 
   return X;
-}
-
-static size_t getmax(double* arr, size_t size) {
-  size_t max = 0;
-
-  for(size_t i = 0; i < size; i++)
-    max = arr[i] > arr[max] ? i : max;
-
-  return max;
-}
-
-
-static char numToText(double num) {
-  char letter = 0;
-  if (num > 229.5)
-    letter = '@';
-  else if (num > 204)
-    letter = '#';
-  else if (num > 178.5)
-    letter = '8';
-  else if (num > 153)
-    letter = '&';
-  else if (num > 127.5)
-    letter = 'o';
-  else if (num > 102)
-    letter = ';';
-  else if (num > 76.5)
-    letter = '*';
-  else if (num > 51)
-    letter = '.';
-  else
-    letter = ' ';
-
-  return letter;
-}
-
-static void printImage(double* const data, size_t size) {
-  for(size_t i = 0; i < size; i++) {
-    printf("%c", numToText(data[i]));
-    if(i % 28 == 0)
-      printf("\n");
-  }
-  printf("\n");
 }
 
 /*-----------------------------------------------------------------------*/
@@ -109,30 +66,30 @@ bool initNNet(neural_network_t * n_net, size_t num_layers,
     current_layer->num_neurons_ = neurons_per_layer[i]; //set num neurons
 
     current_layer->outputs_ = //allocate outputs
-      (double *) malloc(current_layer->num_neurons_ * sizeof(double));
+      (long double *) malloc(current_layer->num_neurons_ * sizeof(long double));
 
     if (i < 1) //skip allocating + initing weights + biases for the first layer
       continue;
 
 
     current_layer->errors_ = //allocate errors
-      (double *) malloc(current_layer->num_neurons_ * sizeof(double));
+      (long double *) malloc(current_layer->num_neurons_ * sizeof(long double));
 
     current_layer->avg_errors_ = //allocate avg errors
-      (double *) malloc(current_layer->num_neurons_ * sizeof(double));
+      (long double *) malloc(current_layer->num_neurons_ * sizeof(long double));
 
     current_layer->biases_ = //allocate biases
-      (double *) malloc(current_layer->num_neurons_ * sizeof(double));
+      (long double *) malloc(current_layer->num_neurons_ * sizeof(long double));
 
     current_layer->weighted_sums_ = //allocate weighted sums
-      (double *) malloc(current_layer->num_neurons_ * sizeof(double));
+      (long double *) malloc(current_layer->num_neurons_ * sizeof(long double));
 
     current_layer->weights_ = //allocate weights
-      (double **) malloc(current_layer->num_neurons_ * sizeof(double*));
+      (long double **) malloc(current_layer->num_neurons_ * sizeof(long double*));
 
 
     current_layer->avg_weight_grads_ = //allocate weights
-      (double **) malloc(current_layer->num_neurons_ * sizeof(double*));
+      (long double **) malloc(current_layer->num_neurons_ * sizeof(long double*));
 
     current_layer->weights_per_neuron_ = //set weights per neuron
       n_net->layers_[i-1].num_neurons_;     //to num neurons in prev layer
@@ -144,12 +101,12 @@ bool initNNet(neural_network_t * n_net, size_t num_layers,
 
       //num weights depend on size of previous layer
       current_layer->weights_[j] =
-        (double *) malloc(current_layer->weights_per_neuron_ *
-            sizeof(double));
+        (long double *) malloc(current_layer->weights_per_neuron_ *
+            sizeof(long double));
 
       current_layer->avg_weight_grads_[j] =
-        (double *) malloc(current_layer->weights_per_neuron_ *
-            sizeof(double));
+        (long double *) malloc(current_layer->weights_per_neuron_ *
+            sizeof(long double));
 
       //initialize k weights for the particular neuron, j
       for (size_t k = 0; k < current_layer->weights_per_neuron_; k++) {
@@ -204,11 +161,11 @@ void clearBatchAvg(neural_network_t* n_net) {
     nn_layer_t * current_layer = &n_net->layers_[i];
 
     memset(current_layer->avg_errors_, 0, current_layer->num_neurons_ *
-        sizeof(double));
+        sizeof(long double));
 
     for(size_t j = 0; j < current_layer->num_neurons_; j++) {
       memset(current_layer->avg_weight_grads_[j], 0,
-          current_layer->weights_per_neuron_ * sizeof(double));
+          current_layer->weights_per_neuron_ * sizeof(long double));
     }
   }
 }
@@ -220,18 +177,18 @@ void clearBatchAvg(neural_network_t* n_net) {
 //applies stochastic gradient descent on the network.
 //SO INEFFICIENT ;-----;
 bool sgdNNet(neural_network_t* n_net,
-    double* const samples,
-    double* const expected,
+    long double* const samples,
+    long double* const expected,
     size_t num_samples,
     uint64_t epochs,
-    double eta,
+    long double eta,
     size_t mini_batch_size,
-    double* verif_samples,     //set of things to classify
-    double* verif_expected,  //set of things to compare against
+    long double* verif_samples,     //set of things to classify
+    long double* verif_expected,  //set of things to compare against
     size_t num_verif_samples) {
 
   clock_t start, end;
-  double cpu_time;
+  long double cpu_time;
 
   if (mini_batch_size > num_samples)
     return false;
@@ -252,10 +209,10 @@ bool sgdNNet(neural_network_t* n_net,
       //printf("Batch %ld of %ld\n", j+1, mini_batch_size);
 
       //printf("rand %ld: %ld\n", j, sample_index);
-      double* current_sample = //get random sample index
+      long double* current_sample = //get random sample index
         samples+(n_net->layers_[0].num_neurons_ * sample_index);
 
-      double* current_expected = //get random sample index
+      long double* current_expected = //get random sample index
         expected+(n_net->layers_[n_net->num_layers_ -1].num_neurons_ *
           sample_index);
 
@@ -288,11 +245,11 @@ bool sgdNNet(neural_network_t* n_net,
 
       for (size_t n = 0; n < current_layer->num_neurons_; n++) {
 
-        current_layer->biases_[n] -= (eta/(double)mini_batch_size) *
+        current_layer->biases_[n] -= (eta/(long double)mini_batch_size) *
           current_layer->avg_errors_[n];
 
         for (size_t m = 0; m < current_layer->weights_per_neuron_; m++) {
-          current_layer->weights_[n][m] -= (eta/(double)mini_batch_size) *
+          current_layer->weights_[n][m] -= (eta/(long double)mini_batch_size) *
             current_layer->avg_weight_grads_[n][m];
         }
       }
@@ -303,8 +260,8 @@ bool sgdNNet(neural_network_t* n_net,
       verifyNNet(n_net, verif_samples, verif_expected, num_verif_samples);
 
     end = clock();
-    cpu_time = ((double) (end - start))/CLOCKS_PER_SEC; //
-    printf("Completed in %f seconds.\n\n", cpu_time);
+    cpu_time = ((long double) (end - start))/CLOCKS_PER_SEC; //
+    printf("Completed in %Lf seconds.\n\n", cpu_time);
   } //end for epochs
 
   return true;
@@ -314,8 +271,8 @@ bool sgdNNet(neural_network_t* n_net,
 /*                          BACKPROPAGATION                              */
 /*-----------------------------------------------------------------------*/
 
-bool backPropNNet(neural_network_t* n_net, double* const input,
-    double* const expected) {
+bool backPropNNet(neural_network_t* n_net, long double* const input,
+    long double* const expected) {
 
   size_t output_layer = n_net->num_layers_ - 1;
   nn_layer_t * current_layer = NULL;
@@ -346,7 +303,7 @@ bool backPropNNet(neural_network_t* n_net, double* const input,
     next_layer = &n_net->layers_[i+1];
 
     for(size_t j = 0; j < current_layer->num_neurons_; j++) {
-      double dot_product = 0;
+      long double dot_product = 0;
 
       //dot product next layer deltas with their weights
       for(size_t k = 0; k < next_layer->num_neurons_; k++) {
@@ -371,7 +328,7 @@ bool backPropNNet(neural_network_t* n_net, double* const input,
 /*-----------------------------------------------------------------------*/
 //feedforward will only take the first layer num_nodes_ worth from data arr
 //classification will be returned in the final output layer
-void feedForwardNNet(neural_network_t* n_net, double* const input) {
+void feedForwardNNet(neural_network_t* n_net, long double* const input) {
 
   nn_layer_t * first_layer = &n_net->layers_[0];
 
@@ -389,7 +346,7 @@ void feedForwardNNet(neural_network_t* n_net, double* const input) {
     for (size_t j = 0; j < current_layer->num_neurons_; j++) { //for nodes
 
       //dot product
-      double dot_product = 0;
+      long double dot_product = 0;
 
       //since trivial use simd extensions
       for (size_t k = 0; k < current_layer->weights_per_neuron_; k++) {
@@ -414,8 +371,8 @@ void feedForwardNNet(neural_network_t* n_net, double* const input) {
 //will run classification over whole verification data set and print the
 //identification rate
 void verifyNNet(neural_network_t* n_net,
-    double* const input_data,
-    double* const expected_data,
+    long double* const input_data,
+    long double* const expected_data,
     size_t data_size) {
 
   nn_layer_t * first_layer = &n_net->layers_[0];

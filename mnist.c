@@ -22,11 +22,7 @@
 #define DEFAULT_TRAIN     "data/train-images-idx3-ubyte"
 #define DEFAULT_EXPECT    "data/train-labels-idx1-ubyte"
 
-void printImage(double* const data, size_t index);
-void classify(neural_network_t *n_net, double* const input_data);
-size_t getmax(double* arr, size_t size);
-
-char numToText(double num);
+void classify(neural_network_t *n_net, long double* const input_data);
 
 int main(int argc, char ** argv) {
   neural_network_t neural_net;
@@ -51,11 +47,11 @@ int main(int argc, char ** argv) {
   }
 
   //probably not the best idea...
-  double* input_data = (double *)
-    malloc(NUM_PICTURES*PICTURE_SIZE*sizeof(double));
+  long double* input_data = (long double *)
+    malloc(NUM_PICTURES*PICTURE_SIZE*sizeof(long double));
 
-  double* expected_data = (double *)
-    calloc(NUM_PICTURES*OUTPUT_LAYER_SIZE,sizeof(double));
+  long double* expected_data = (long double *)
+    calloc(NUM_PICTURES*OUTPUT_LAYER_SIZE,sizeof(long double));
 
   //for MNIST data
   //set input data to first input
@@ -68,7 +64,7 @@ int main(int argc, char ** argv) {
   for (size_t i = 0; i < NUM_PICTURES*PICTURE_SIZE; i++) {
     uint8_t buff = 0;
     read(input_data_fd, &buff, 1);
-    input_data[i] = ((double) buff/255.0f);
+    input_data[i] = ((long double) buff/255.0f);
   }
 
   printf("Copying expected data and mapping it to vectors.\n");
@@ -141,7 +137,7 @@ int main(int argc, char ** argv) {
       NUM_SAMPLES,      //#samples in data
       10000,               //epochs
       3.0,              //eta
-      100,               //batch size
+      10,               //batch size
       NULL,//input_data+NUM_SAMPLES*PICTURE_SIZE,             //verification input data
       NULL,//expected_data+NUM_SAMPLES*OUTPUT_LAYER_SIZE,             //verification expected data
       VERIF_SAMPLES);               //verification sample size
@@ -187,60 +183,19 @@ int main(int argc, char ** argv) {
 /*------------------------------------------------------------------------*/
 /*                      Function Definitions                              */
 /*------------------------------------------------------------------------*/
-void printImage(double* const data, size_t size) {
-  for(size_t i = 0; i < size; i++) {
-    printf("%c", numToText(data[i]));
-    if(i % PIC_HEIGHT == 0)
-      printf("\n");
-  }
-  printf("\n");
-}
 
-char numToText(double num) {
-  char letter = 0;
-  if (num > 229.5/255.0f)
-    letter = '@';
-  else if (num > 204/255.0f)
-    letter = '#';
-  else if (num > 178.5/255.0f)
-    letter = '8';
-  else if (num > 153/255.0f)
-    letter = '&';
-  else if (num > 127.5/255.0f)
-    letter = 'o';
-  else if (num > 102/255.0f)
-    letter = ';';
-  else if (num > 76.5/255.0f)
-    letter = '*';
-  else if (num > 51/255.0f)
-    letter = '.';
-  else
-    letter = ' ';
-
-  return letter;
-}
-
-void classify(neural_network_t *n_net, double* const input_data) {
+void classify(neural_network_t *n_net, long double* const input_data) {
 
   nn_layer_t * last_layer = &n_net->layers_[n_net->num_layers_-1];
 
-  printImage(input_data, PICTURE_SIZE);
+  printImage(input_data, PICTURE_SIZE, PIC_WIDTH);
   feedForwardNNet(n_net, input_data);
 
   printf("Output layer is: \n");
   for (size_t i = 0; i < last_layer->num_neurons_; i++)
-    printf("%ld %f\n", i, last_layer->outputs_[i]);
+    printf("%ld %Lf\n", i, last_layer->outputs_[i]);
   printf("\n");
 
   printf("Classified as %ld\n",
       getmax(last_layer->outputs_, last_layer->num_neurons_));
-}
-
-size_t getmax(double* arr, size_t size) {
-  size_t max = 0;
-
-  for(size_t i = 0; i < size; i++)
-    max = arr[i] > arr[max] ? i : max;
-
-  return max;
 }
