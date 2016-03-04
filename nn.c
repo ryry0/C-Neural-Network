@@ -249,7 +249,7 @@ bool sgdNNet(neural_network_t* n_net,
     for (size_t j = 0; j < mini_batch_size; j++) {
       size_t sample_index = rand() % num_samples;
 
-      printf("Batch %ld of %ld\n", j+1, mini_batch_size);
+      //printf("Batch %ld of %ld\n", j+1, mini_batch_size);
 
       //printf("rand %ld: %ld\n", j, sample_index);
       double* current_sample = //get random sample index

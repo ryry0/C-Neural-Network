@@ -139,11 +139,11 @@ int main(int argc, char ** argv) {
       input_data,       //input
       expected_data,    //expected
       NUM_SAMPLES,      //#samples in data
-      30,               //epochs
+      10000,               //epochs
       3.0,              //eta
-      10,               //batch size
-      input_data+NUM_SAMPLES*PICTURE_SIZE,             //verification input data
-      expected_data+NUM_SAMPLES,             //verification expected data
+      100,               //batch size
+      NULL,//input_data+NUM_SAMPLES*PICTURE_SIZE,             //verification input data
+      NULL,//expected_data+NUM_SAMPLES*OUTPUT_LAYER_SIZE,             //verification expected data
       VERIF_SAMPLES);               //verification sample size
 
   /*
@@ -166,6 +166,9 @@ int main(int argc, char ** argv) {
           (NUM_SAMPLES+sample_index)*OUTPUT_LAYER_SIZE,
           OUTPUT_LAYER_SIZE));
   }
+
+  verifyNNet(&neural_net, input_data+NUM_SAMPLES*PICTURE_SIZE,
+      expected_data+NUM_SAMPLES*OUTPUT_LAYER_SIZE, VERIF_SAMPLES);
 
   /*------------------------------------------------------------------------*/
   /*                      Deallocation of resources                         */
