@@ -193,11 +193,13 @@ bool sgdNNet(neural_network_t* n_net,
   if (mini_batch_size > num_samples)
     return false;
 
+  printf("Beginning Training\n");
+
   for(uint64_t i = 0; i < epochs; i++) {
     //TODO:WILL PROBABLY PRODUCE BAD RESULTS IF DATA_SIZE > RAND_MAX
     //might get same random number
 
-    printf("Epoch %ld of %ld\n", i+1, epochs);
+    //printf("Epoch %ld of %ld\n", i+1, epochs);
     start = clock();
 
     //clear the average values for the gradients.
@@ -260,9 +262,12 @@ bool sgdNNet(neural_network_t* n_net,
       verifyNNet(n_net, verif_samples, verif_expected, num_verif_samples);
 
     end = clock();
-    cpu_time = ((long double) (end - start))/CLOCKS_PER_SEC; //
-    printf("Completed in %Lf seconds.\n\n", cpu_time);
+    cpu_time += ((long double) (end - start))/CLOCKS_PER_SEC; //
   } //end for epochs
+
+  printf("Total time: %Lf seconds.\n", cpu_time);
+  printf("Epoch average completion time %Lf seconds.\n\n", cpu_time/(long
+        double)epochs);
 
   return true;
 }
