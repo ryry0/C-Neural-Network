@@ -22,10 +22,7 @@
 #define DEFAULT_TRAIN     "data/train-images-idx3-ubyte"
 #define DEFAULT_EXPECT    "data/train-labels-idx1-ubyte"
 
-void classify(neural_network_t *n_net, mpfr_t* const input_data);
-size_t getmax(mpfr_t* arr, size_t size);
-
-char numToText(mpfr_t num);
+void classify(neural_network_t *n_net, double* const input_data);
 
 int main(int argc, char ** argv) {
   neural_network_t neural_net;
@@ -50,20 +47,11 @@ int main(int argc, char ** argv) {
   }
 
   //allocate input and expected data arrays
-  mpfr_t* input_data = (mpfr_t *)
-    malloc(NUM_PICTURES*PICTURE_SIZE*sizeof(mpfr_t));
+  double* input_data =
+    malloc(NUM_PICTURES*PICTURE_SIZE*sizeof(*input_data));
 
-  for (size_t i = 0; i < NUM_PICTURES*PICTURE_SIZE; i++) {
-    mpfr_init2(input_data[i], PRECISION);
-  }
-
-  mpfr_t* expected_data = (mpfr_t *)
-    malloc(NUM_PICTURES*OUTPUT_LAYER_SIZE*sizeof(mpfr_t));
-
-  for (size_t i = 0; i < NUM_PICTURES*OUTPUT_LAYER_SIZE; i++) {
-    mpfr_init2(expected_data[i], PRECISION);
-    mpfr_set_ui(expected_data[i], 0, MPFR_RNDN);
-  }
+  double* expected_data =
+    calloc(NUM_PICTURES*OUTPUT_LAYER_SIZE,sizeof(*expected_data));
 
   //for MNIST data
   //set input data to first input
@@ -76,15 +64,14 @@ int main(int argc, char ** argv) {
   for (size_t i = 0; i < NUM_PICTURES*PICTURE_SIZE; i++) {
     uint8_t buff = 0;
     read(input_data_fd, &buff, 1);
-    mpfr_set_d(input_data[i],((double) buff/255.0f, MPFR_RNDN));
+    input_data[i]= ((double) buff/255.0f);
   }
 
   printf("Copying expected data and mapping it to vectors.\n");
   for (size_t i = 0; i < NUM_PICTURES; i++) {
     uint8_t buff = 0;
     read(expected_data_fd, &buff, 1);
-    mpfr_set_d(expected_data[(i*OUTPUT_LAYER_SIZE) + (size_t) buff], 1.0f,
-        MPFR_RNDN);
+    expected_data[(i*OUTPUT_LAYER_SIZE) + (size_t) buff]= 1.0f;
   }
 
   /*------------------------------------------------------------------------*/
@@ -171,7 +158,7 @@ int main(int argc, char ** argv) {
     size_t sample_index = rand() % VERIF_SAMPLES;
     classify(&neural_net, (input_data + (NUM_SAMPLES+sample_index)*
           PICTURE_SIZE));
-    printf("Expected: %ld\n", getmax(expected_data +
+    printf("Expected: %ld\n", getmaxDouble(expected_data +
           (NUM_SAMPLES+sample_index)*OUTPUT_LAYER_SIZE,
           OUTPUT_LAYER_SIZE));
   }
@@ -184,18 +171,8 @@ int main(int argc, char ** argv) {
   close(expected_data_fd);
   close(input_data_fd);
 
-
-  for (size_t i = 0; i < NUM_PICTURES*PICTURE_SIZE; i++) {
-    mpfr_clear(input_data[i], PRECISION);
-  }
-
-  for (size_t i = 0; i < NUM_PICTURES*OUTPUT_LAYER_SIZE; i++) {
-    mpfr_clear(expected_data[i], PRECISION);
-  }
-
   free(input_data);
   free(expected_data);
-  mpfr_free_cache();
 
   return 0;
 }
@@ -204,7 +181,7 @@ int main(int argc, char ** argv) {
 /*                      Function Definitions                              */
 /*------------------------------------------------------------------------*/
 
-void classify(neural_network_t *n_net, mpfr_t* const input_data) {
+void classify(neural_network_t *n_net, double* const input_data) {
 
   nn_layer_t * last_layer = &n_net->layers_[n_net->num_layers_-1];
 
@@ -213,7 +190,7 @@ void classify(neural_network_t *n_net, mpfr_t* const input_data) {
 
   printf("Output layer is: \n");
   for (size_t i = 0; i < last_layer->num_neurons_; i++)
-    printf("%ld %f\n", i, last_layer->outputs_[i]);
+    printf("%ld %f\n", i, mpfr_get_d(last_layer->outputs_[i], MPFR_RNDN));
   printf("\n");
 
   printf("Classified as %ld\n",

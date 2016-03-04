@@ -93,7 +93,7 @@ bool initNNet(neural_network_t * n_net, size_t num_layers,
     //initialize output mpfr variables
     for (size_t j = 0; j < current_layer->num_neurons_; ++j) {
       mpfr_init2(current_layer->outputs_[i], PRECISION);
-      mpfr_set_ui(current_layer->outputs_[i], 0);
+      mpfr_set_ui(current_layer->outputs_[i], 0, MPFR_RNDN);
     }
 
     if (i < 1) //skip allocating + initing weights + biases for the first layer
@@ -235,14 +235,14 @@ void clearBatchAvg(neural_network_t* n_net) {
 //applies stochastic gradient descent on the network.
 //SO INEFFICIENT ;-----;
 bool sgdNNet(neural_network_t* n_net,
-    mpfr_t* const samples,
-    mpfr_t* const expected,
+    double* const samples,
+    double* const expected,
     size_t num_samples,
     uint64_t epochs,
     double eta,
     size_t mini_batch_size,
-    mpfr_t* verif_samples,     //set of things to classify
-    mpfr_t* verif_expected,  //set of things to compare against
+    double* verif_samples,     //set of things to classify
+    double* verif_expected,  //set of things to compare against
     size_t num_verif_samples) {
 
   clock_t start, end;
@@ -273,10 +273,10 @@ bool sgdNNet(neural_network_t* n_net,
       printf("Batch %ld of %ld\n", j+1, mini_batch_size);
 
       //printf("rand %ld: %ld\n", j, sample_index);
-      mpfr_t* current_sample = //get random sample index
+      double* current_sample = //get random sample index
         samples+(n_net->layers_[0].num_neurons_ * sample_index);
 
-      mpfr_t* current_expected = //get random sample index
+      double* current_expected = //get random sample index
         expected+(n_net->layers_[n_net->num_layers_ -1].num_neurons_ *
           sample_index);
 
@@ -320,7 +320,8 @@ bool sgdNNet(neural_network_t* n_net,
       for (size_t n = 0; n < current_layer->num_neurons_; n++) {
 
         //temp = learning_const * sum_errors_[n]
-        mpfr_mul(temp, learning_const, current_layer->sum_errors_[n]);
+        mpfr_mul(temp, learning_const, current_layer->sum_errors_[n],
+            MPFR_RNDN);
 
         //biases_[n] = biases_[n] - temp i.e
         //biases_[n] = biases_[n] - (learning_const * sum_errors_[n])
@@ -335,14 +336,12 @@ bool sgdNNet(neural_network_t* n_net,
               current_layer->sum_weight_grads_[n][m],
               MPFR_RNDN);
 
-          //weights_[n][m] = weights_[n][m] - (learning_const*sum_weight_grads_[n][m])
+          //weights_[n][m] = weights_[n][m] -
+          //(learning_const*sum_weight_grads_[n][m])
           mpfr_sub(current_layer->weights_[n][m],
               current_layer->weights_[n][m],
               temp,
               MPFR_RNDN);
-
-          current_layer->weights_[n][m] -= (eta/(mpfr_t)mini_batch_size) *
-            current_layer->sum_weight_grads_[n][m];
         }
       }
     } //end for each layer
@@ -352,7 +351,7 @@ bool sgdNNet(neural_network_t* n_net,
       verifyNNet(n_net, verif_samples, verif_expected, num_verif_samples);
 
     end = clock();
-    cpu_time = ((mpfr_t) (end - start))/CLOCKS_PER_SEC; //
+    cpu_time = ((double) (end - start))/CLOCKS_PER_SEC; //
     printf("Completed in %f seconds.\n\n", cpu_time);
   } //end for epochs
 
@@ -365,8 +364,8 @@ bool sgdNNet(neural_network_t* n_net,
 /*                          BACKPROPAGATION                              */
 /*-----------------------------------------------------------------------*/
 
-bool backPropNNet(neural_network_t* n_net, mpfr_t* const input,
-    mpfr_t* const expected) {
+bool backPropNNet(neural_network_t* n_net, double* const input,
+    double* const expected) {
 
   size_t output_layer = n_net->num_layers_ - 1;
   nn_layer_t * current_layer = NULL;
@@ -387,12 +386,12 @@ bool backPropNNet(neural_network_t* n_net, mpfr_t* const input,
   for(size_t i = 0; i < current_layer->num_neurons_; i++) {
 
     //errors_[i] = outputs_[i] - expected[i]
-    mpfr_sub(current_layer->errors_[i],
+    mpfr_sub_d(current_layer->errors_[i],
         current_layer->outputs_[i], expected[i],
         MPFR_RNDN);
 
     //temp = sigmoid_Prime(weighted_sums_[i])
-    sigmoidPrime(temp, &current_layer->weighted_sums_[i]);
+    sigmoidPrime(&temp, &current_layer->weighted_sums_[i]);
 
     //errors_[i] = errors_[i] * temp, i.e
     //errors_[i] = (outputs_[i] - expected[i])*sigmoid(weighted_sums_[i])
@@ -428,7 +427,7 @@ bool backPropNNet(neural_network_t* n_net, mpfr_t* const input,
       }
 
       //temp = sigmoidPrime(weighted_sums_[j])
-      sigmoidPrime(&temp, &current_layer->weighted_sums_[j], MPFR_RNDN);
+      sigmoidPrime(&temp, &current_layer->weighted_sums_[j]);
 
       //errors_[j] = dot_product * sigmoidPrime (weighted_sums_[j]);
       mpfr_mul(current_layer->errors_[j], dot_product, temp, MPFR_RNDN);
@@ -450,7 +449,7 @@ bool backPropNNet(neural_network_t* n_net, mpfr_t* const input,
 /*-----------------------------------------------------------------------*/
 //feedforward will only take the first layer num_nodes_ worth from data arr
 //classification will be returned in the final output layer
-void feedForwardNNet(neural_network_t* n_net, mpfr_t* const input) {
+void feedForwardNNet(neural_network_t* n_net, double* const input) {
 
   nn_layer_t * first_layer = &n_net->layers_[0];
 
@@ -462,7 +461,7 @@ void feedForwardNNet(neural_network_t* n_net, mpfr_t* const input) {
 
   //assign data to first layer of network
   for (size_t i = 0; i < first_layer->num_neurons_; i++) {
-    mfpr_set(first_layer->outputs_[i], input[i], MPFR_RNDN);
+    mpfr_set_d(first_layer->outputs_[i], input[i], MPFR_RNDN);
   }
 
   //optimize here sse/threads
@@ -507,8 +506,8 @@ void feedForwardNNet(neural_network_t* n_net, mpfr_t* const input) {
 //will run classification over whole verification data set and print the
 //identification rate
 void verifyNNet(neural_network_t* n_net,
-    mpfr_t* const input_data,
-    mpfr_t* const expected_data,
+    double* const input_data,
+    double* const expected_data,
     size_t data_size) {
 
   nn_layer_t * first_layer = &n_net->layers_[0];
@@ -521,7 +520,7 @@ void verifyNNet(neural_network_t* n_net,
         input_data + (sample_index * first_layer->num_neurons_));
 
     if (getmax(output_layer->outputs_, output_layer->num_neurons_) ==
-        getmax(expected_data + (sample_index*output_layer->num_neurons_),
+        getmaxDouble(expected_data + (sample_index*output_layer->num_neurons_),
           output_layer->num_neurons_))
       num_correct++;
   }

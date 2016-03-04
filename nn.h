@@ -67,14 +67,14 @@ bool initNNet(neural_network_t* n_net, size_t num_layers,
  * If the pointer passed is null, the verification step is skipped.
  */
 bool sgdNNet(neural_network_t* n_net,
-    mpfr_t* const samples,
-    mpfr_t* const expected,
+    double* const samples,
+    double* const expected,
     size_t num_samples,
     uint64_t epochs,
     double eta ,
     size_t mini_batch_size,
-    mpfr_t* verif_samples,     //set of things to classify
-    mpfr_t* verif_expected,  //set of things to compare against
+    double* verif_samples,     //set of things to classify
+    double* verif_expected,  //set of things to compare against
     size_t num_verif_samples);
 
 /*
@@ -83,19 +83,19 @@ bool sgdNNet(neural_network_t* n_net,
  * Should technically output the gradient, and not just the errors, but
  * that's a lot more to store.
  */
-bool backPropNNet(neural_network_t* n_net, mpfr_t* const input,
-    mpfr_t* const expected);
+bool backPropNNet(neural_network_t* n_net, double* const input,
+    double* const expected);
 
 /*
  * Verifies the n_net against the verification data
  */
 void verifyNNet(neural_network_t* n_net,
-    mpfr_t* const input_data,
-    mpfr_t* const expected_data,
+    double* const input_data,
+    double* const expected_data,
     size_t data_size);
 
 //runs net input -> output for classification
-void feedForwardNNet(neural_network_t* n_net, mpfr_t* const input);
+void feedForwardNNet(neural_network_t* n_net, double* const input);
 
 bool destroyNNet(neural_network_t* n_net);
 
