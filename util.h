@@ -5,7 +5,7 @@ size_t getmax(mpfr_t* arr, size_t size) {
   size_t max = 0;
 
   for(size_t i = 0; i < size; i++)
-    max = mpfr_cmp_d(arr[i], arr[max]) > 0 ? i : max;
+    max = mpfr_cmp(arr[i], arr[max]) > 0 ? i : max;
 
   return max;
 }

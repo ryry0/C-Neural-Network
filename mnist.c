@@ -22,11 +22,10 @@
 #define DEFAULT_TRAIN     "data/train-images-idx3-ubyte"
 #define DEFAULT_EXPECT    "data/train-labels-idx1-ubyte"
 
-void printImage(double* const data, size_t index);
-void classify(neural_network_t *n_net, double* const input_data);
-size_t getmax(double* arr, size_t size);
+void classify(neural_network_t *n_net, mpfr_t* const input_data);
+size_t getmax(mpfr_t* arr, size_t size);
 
-char numToText(double num);
+char numToText(mpfr_t num);
 
 int main(int argc, char ** argv) {
   neural_network_t neural_net;
@@ -50,12 +49,21 @@ int main(int argc, char ** argv) {
     return 1;
   }
 
-  //probably not the best idea...
-  double* input_data = (double *)
-    malloc(NUM_PICTURES*PICTURE_SIZE*sizeof(double));
+  //allocate input and expected data arrays
+  mpfr_t* input_data = (mpfr_t *)
+    malloc(NUM_PICTURES*PICTURE_SIZE*sizeof(mpfr_t));
 
-  double* expected_data = (double *)
-    calloc(NUM_PICTURES*OUTPUT_LAYER_SIZE,sizeof(double));
+  for (size_t i = 0; i < NUM_PICTURES*PICTURE_SIZE; i++) {
+    mpfr_init2(input_data[i], PRECISION);
+  }
+
+  mpfr_t* expected_data = (mpfr_t *)
+    malloc(NUM_PICTURES*OUTPUT_LAYER_SIZE*sizeof(mpfr_t));
+
+  for (size_t i = 0; i < NUM_PICTURES*OUTPUT_LAYER_SIZE; i++) {
+    mpfr_init2(expected_data[i], PRECISION);
+    mpfr_set_ui(expected_data[i], 0, MPFR_RNDN);
+  }
 
   //for MNIST data
   //set input data to first input
@@ -68,14 +76,15 @@ int main(int argc, char ** argv) {
   for (size_t i = 0; i < NUM_PICTURES*PICTURE_SIZE; i++) {
     uint8_t buff = 0;
     read(input_data_fd, &buff, 1);
-    input_data[i] = ((double) buff/255.0f);
+    mpfr_set_d(input_data[i],((double) buff/255.0f, MPFR_RNDN));
   }
 
   printf("Copying expected data and mapping it to vectors.\n");
   for (size_t i = 0; i < NUM_PICTURES; i++) {
     uint8_t buff = 0;
     read(expected_data_fd, &buff, 1);
-    expected_data[(i*OUTPUT_LAYER_SIZE) + (size_t) buff] = 1.0f;
+    mpfr_set_d(expected_data[(i*OUTPUT_LAYER_SIZE) + (size_t) buff], 1.0f,
+        MPFR_RNDN);
   }
 
   /*------------------------------------------------------------------------*/
@@ -175,8 +184,18 @@ int main(int argc, char ** argv) {
   close(expected_data_fd);
   close(input_data_fd);
 
+
+  for (size_t i = 0; i < NUM_PICTURES*PICTURE_SIZE; i++) {
+    mpfr_clear(input_data[i], PRECISION);
+  }
+
+  for (size_t i = 0; i < NUM_PICTURES*OUTPUT_LAYER_SIZE; i++) {
+    mpfr_clear(expected_data[i], PRECISION);
+  }
+
   free(input_data);
   free(expected_data);
+  mpfr_free_cache();
 
   return 0;
 }
@@ -184,44 +203,12 @@ int main(int argc, char ** argv) {
 /*------------------------------------------------------------------------*/
 /*                      Function Definitions                              */
 /*------------------------------------------------------------------------*/
-void printImage(double* const data, size_t size) {
-  for(size_t i = 0; i < size; i++) {
-    printf("%c", numToText(data[i]));
-    if(i % PIC_HEIGHT == 0)
-      printf("\n");
-  }
-  printf("\n");
-}
 
-char numToText(double num) {
-  char letter = 0;
-  if (num > 229.5/255.0f)
-    letter = '@';
-  else if (num > 204/255.0f)
-    letter = '#';
-  else if (num > 178.5/255.0f)
-    letter = '8';
-  else if (num > 153/255.0f)
-    letter = '&';
-  else if (num > 127.5/255.0f)
-    letter = 'o';
-  else if (num > 102/255.0f)
-    letter = ';';
-  else if (num > 76.5/255.0f)
-    letter = '*';
-  else if (num > 51/255.0f)
-    letter = '.';
-  else
-    letter = ' ';
-
-  return letter;
-}
-
-void classify(neural_network_t *n_net, double* const input_data) {
+void classify(neural_network_t *n_net, mpfr_t* const input_data) {
 
   nn_layer_t * last_layer = &n_net->layers_[n_net->num_layers_-1];
 
-  printImage(input_data, PICTURE_SIZE);
+  printImage(input_data, PICTURE_SIZE, PIC_WIDTH);
   feedForwardNNet(n_net, input_data);
 
   printf("Output layer is: \n");
@@ -231,13 +218,4 @@ void classify(neural_network_t *n_net, double* const input_data) {
 
   printf("Classified as %ld\n",
       getmax(last_layer->outputs_, last_layer->num_neurons_));
-}
-
-size_t getmax(double* arr, size_t size) {
-  size_t max = 0;
-
-  for(size_t i = 0; i < size; i++)
-    max = arr[i] > arr[max] ? i : max;
-
-  return max;
 }

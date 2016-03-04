@@ -16,20 +16,25 @@
 #include <stdint.h>  //for uint*
 #include <string.h>
 #include <stdio.h>
+#include <mpfr.h>
+#include <stdarg.h>
+#include <util.h>
+
+#define PRECISION 256 //500 bits of precision lololol
 
 typedef struct nn_layer_t {
   size_t num_neurons_;        //num neurons in layer
   size_t weights_per_neuron_; //based on num neurons in prev layer connected
 
-  double* biases_;            //neuron bias
-  double* outputs_;           //output of neuron
-  double* weighted_sums_;     //weighted sum of neuron z + bias
-  double** weights_;          //2d array rows for each neuron
+  mpfr_t* biases_;            //neuron bias
+  mpfr_t* outputs_;           //output of neuron
+  mpfr_t* weighted_sums_;     //weighted sum of neuron z + bias
+  mpfr_t** weights_;          //2d array rows for each neuron
 
-  double** avg_weight_grads_; //average gradients for every weight
+  mpfr_t** sum_weight_grads_; //average gradients for every weight
 
-  double* errors_;            //neuron error delta
-  double* avg_errors_;        //stores avg error over a mini batch
+  mpfr_t* errors_;            //neuron error delta
+  mpfr_t* sum_errors_;        //stores avg error over a mini batch
 
 } nn_layer_t;
 
@@ -62,14 +67,14 @@ bool initNNet(neural_network_t* n_net, size_t num_layers,
  * If the pointer passed is null, the verification step is skipped.
  */
 bool sgdNNet(neural_network_t* n_net,
-    double* const samples,
-    double* const expected,
+    mpfr_t* const samples,
+    mpfr_t* const expected,
     size_t num_samples,
     uint64_t epochs,
     double eta ,
     size_t mini_batch_size,
-    double* verif_samples,     //set of things to classify
-    double* verif_expected,  //set of things to compare against
+    mpfr_t* verif_samples,     //set of things to classify
+    mpfr_t* verif_expected,  //set of things to compare against
     size_t num_verif_samples);
 
 /*
@@ -78,26 +83,26 @@ bool sgdNNet(neural_network_t* n_net,
  * Should technically output the gradient, and not just the errors, but
  * that's a lot more to store.
  */
-bool backPropNNet(neural_network_t* n_net, double* const input,
-    double* const expected);
+bool backPropNNet(neural_network_t* n_net, mpfr_t* const input,
+    mpfr_t* const expected);
 
 /*
  * Verifies the n_net against the verification data
  */
 void verifyNNet(neural_network_t* n_net,
-    double* const input_data,
-    double* const expected_data,
+    mpfr_t* const input_data,
+    mpfr_t* const expected_data,
     size_t data_size);
 
 //runs net input -> output for classification
-void feedForwardNNet(neural_network_t* n_net, double* const input);
+void feedForwardNNet(neural_network_t* n_net, mpfr_t* const input);
 
 bool destroyNNet(neural_network_t* n_net);
 
-//utility function that clears out avg_weight_grads_ and avg_errors_
+//utility function that clears out sum_weight_grads_ and sum_errors_
 void clearBatchAvg(neural_network_t* n_net);
 
 //from knuth and marsaglia
-double genRandGauss();
+//mpfr_t genRandGauss();
 
 #endif
