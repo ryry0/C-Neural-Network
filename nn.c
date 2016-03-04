@@ -196,10 +196,6 @@ bool sgdNNet(neural_network_t* n_net,
   printf("Beginning Training\n");
 
   for(uint64_t i = 0; i < epochs; i++) {
-    //TODO:WILL PROBABLY PRODUCE BAD RESULTS IF DATA_SIZE > RAND_MAX
-    //might get same random number
-
-    //printf("Epoch %ld of %ld\n", i+1, epochs);
     start = clock();
 
     //clear the average values for the gradients.
@@ -208,9 +204,6 @@ bool sgdNNet(neural_network_t* n_net,
     for (size_t j = 0; j < mini_batch_size; j++) {
       size_t sample_index = rand() % num_samples;
 
-      //printf("Batch %ld of %ld\n", j+1, mini_batch_size);
-
-      //printf("rand %ld: %ld\n", j, sample_index);
       long double* current_sample = //get random sample index
         samples+(n_net->layers_[0].num_neurons_ * sample_index);
 
@@ -285,8 +278,6 @@ bool backPropNNet(neural_network_t* n_net, long double* const input,
 
   //feedforward
   feedForwardNNet(n_net, input);
-  //printImage(input, n_net->layers_[0].num_neurons_);
-  //printf("\n");
 
   //calculate errors for output layer per neuron
   current_layer = &n_net->layers_[output_layer];
@@ -294,12 +285,6 @@ bool backPropNNet(neural_network_t* n_net, long double* const input,
     current_layer->errors_[i] =
       (current_layer->outputs_[i] - expected[i]) *
       sigmoidPrime(current_layer->weighted_sums_[i]);
-
-    /*
-    printf("E:%f\tO:%f\tX:%f\n", current_layer->errors_[i],
-      current_layer->outputs_[i],
-      expected[i]);
-      */
   } //(a - y) * s(z) forall neurons
 
   //backpropagate the errors in (num_layers_ - 2) to layer 1
@@ -318,10 +303,6 @@ bool backPropNNet(neural_network_t* n_net, long double* const input,
       current_layer->errors_[j] = (dot_product) *
         sigmoidPrime(current_layer->weighted_sums_[j]);
 
-      /*
-      printf("E:%f\tO:%f\n", current_layer->errors_[j],
-        current_layer->outputs_[j]);
-      */
     }
   } //end for each layer
 
