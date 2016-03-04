@@ -22,7 +22,7 @@
 #define DEFAULT_TRAIN     "data/train-images-idx3-ubyte"
 #define DEFAULT_EXPECT    "data/train-labels-idx1-ubyte"
 
-void classify(neural_network_t *n_net, long double* const input_data);
+void classify(neural_network_t *n_net, float* const input_data);
 
 int main(int argc, char ** argv) {
   neural_network_t neural_net;
@@ -46,11 +46,11 @@ int main(int argc, char ** argv) {
     return 1;
   }
 
-  long double* input_data = (long double *)
-    malloc(NUM_PICTURES*PICTURE_SIZE*sizeof(long double));
+  float* input_data = (float *)
+    malloc(NUM_PICTURES*PICTURE_SIZE*sizeof(float));
 
-  long double* expected_data = (long double *)
-    calloc(NUM_PICTURES*OUTPUT_LAYER_SIZE,sizeof(long double));
+  float* expected_data = (float *)
+    calloc(NUM_PICTURES*OUTPUT_LAYER_SIZE,sizeof(float));
 
   //for MNIST data
   //set input data to first input
@@ -63,7 +63,7 @@ int main(int argc, char ** argv) {
   for (size_t i = 0; i < NUM_PICTURES*PICTURE_SIZE; i++) {
     uint8_t buff = 0;
     read(input_data_fd, &buff, 1);
-    input_data[i] = ((long double) buff/255.0f);
+    input_data[i] = ((float) buff/255.0f);
   }
 
   printf("Copying expected data and mapping it to vectors.\n");
@@ -124,7 +124,7 @@ int main(int argc, char ** argv) {
 /*                      Function Definitions                              */
 /*------------------------------------------------------------------------*/
 
-void classify(neural_network_t *n_net, long double* const input_data) {
+void classify(neural_network_t *n_net, float* const input_data) {
 
   nn_layer_t * last_layer = &n_net->layers_[n_net->num_layers_-1];
 
@@ -133,7 +133,7 @@ void classify(neural_network_t *n_net, long double* const input_data) {
 
   printf("Output layer is: \n");
   for (size_t i = 0; i < last_layer->num_neurons_; i++)
-    printf("%ld %Lf\n", i, last_layer->outputs_[i]);
+    printf("%ld %f\n", i, last_layer->outputs_[i]);
   printf("\n");
 
   printf("Classified as %ld\n",

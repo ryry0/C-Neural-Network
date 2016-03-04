@@ -1,6 +1,6 @@
 #include <util.h>
 
-void printImage(long double* const data, size_t size, size_t width) {
+void printImage(float* const data, size_t size, size_t width) {
   for(size_t i = 0; i < size; i++) {
     printf("%c", numToText(data[i]));
     if(i % width == 0)
@@ -9,7 +9,7 @@ void printImage(long double* const data, size_t size, size_t width) {
   printf("\n");
 }
 
-char numToText(long double num) {
+char numToText(float num) {
   char letter = 0;
   if (num > 229.5/255.0f)
     letter = '@';
@@ -33,7 +33,7 @@ char numToText(long double num) {
   return letter;
 }
 
-size_t getmax(long double* arr, size_t size) {
+size_t getmax(float* arr, size_t size) {
   size_t max = 0;
 
   for(size_t i = 0; i < size; i++)
