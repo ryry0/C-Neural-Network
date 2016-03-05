@@ -6,6 +6,7 @@ CC=gcc
 CFLAGS=-c -I. -std=c11
 LDFLAGS=-lm
 DFLAGS=-DDEBUG -ggdb -g3 -Wall
+RFLAGS=-O2
 DEFAULT_DEBUG=y
 
 EXECUTABLE=nn.x
@@ -18,13 +19,16 @@ OBJECTS=$(SOURCES:.$(SOURCE_EXT)=.$(OBJ_EXT))
 ifeq ($(DEFAULT_DEBUG),y)
 ALL_TARGET=debug
 else
-ALL_TARGET=$(SOURCES) $(EXECUTABLE)
+ALL_TARGET=release
 endif
 
 all: $(ALL_TARGET)
 
 debug: CFLAGS += $(DFLAGS)
 debug: $(SOURCES) $(EXECUTABLE)
+
+release: CFLAGS += $(RFLAGS)
+release: $(SOURCES) $(EXECUTABLE)
 
 $(EXECUTABLE): $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $@
