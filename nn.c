@@ -165,6 +165,7 @@ bool sgdNNet(neural_network_t* n_net,
   for(uint64_t i = 0; i < epochs; i++) {
     start = clock();
 
+    printf("Epoch %ld\n", i);
     for (size_t j = 0; j < mini_batch_size; j++) {
       size_t sample_index = rand() % num_samples;
 
@@ -262,40 +263,132 @@ bool backPropNNet(neural_network_t* n_net, float* const input,
 //classification will be returned in the final output layer
 void feedForwardNNet(neural_network_t* n_net, float* const input) {
 
-  nn_layer_t * first_layer = &n_net->layers_[0];
+  pthread_t threads[NUM_THREADS];
+  thread_data_t thread_data[NUM_THREADS];
+
+  nn_layer_t* first_layer = &n_net->layers_[0];
 
   //assign data to first layer of network
   for (size_t i = 0; i < first_layer->num_neurons_; i++) {
     first_layer->outputs_[i] = input[i];
   }
 
-  //optimize here sse/threads
   for (size_t i = 1; i < n_net->num_layers_; i++) { //for each layer
-    //optimize this maybe using threads
-    nn_layer_t * current_layer = &n_net->layers_[i];
-    nn_layer_t * prev_layer = &n_net->layers_[i-1];
 
-    for (size_t j = 0; j < current_layer->num_neurons_; j++) { //for nodes
+    nn_layer_t* current_layer = &n_net->layers_[i];
+    nn_layer_t* prev_layer = &n_net->layers_[i-1];
 
-      //dot product
-      float dot_product = 0;
+    size_t cl_num_neurons = current_layer->num_neurons_;
 
-      //since trivial use simd extensions
-      for (size_t k = 0; k < current_layer->weights_per_neuron_; k++) {
-        dot_product += current_layer->weights_[j][k] *
-          prev_layer->outputs_[k];
-      }
+    //printf("Splitting threads for layer %ld\n", i);
 
-      //calculate weighted sum
-      current_layer->weighted_sums_[j] = dot_product +
-        current_layer->biases_[j];
+    //for the rest of the threads
+    //set threads with num_neurons_/NUM_THREADS + 1 if num_neurons %4 != 0
+    //if array cannot be evenly divided by 4, distribute the rest equally
+    for (size_t thr_i = 0;
+        thr_i < cl_num_neurons % NUM_THREADS;
+        thr_i++) {
 
-      //calculate neuron j output
-      current_layer->outputs_[j] =
-        sigmoid(current_layer->weighted_sums_[j]);
+      thread_data[thr_i].thr_id = thr_i;
+
+      thread_data[thr_i].current_layer_ = current_layer;
+      thread_data[thr_i].prev_layer_ = prev_layer;
+
+      thread_data[thr_i].start_index_ = (thr_i *
+        (cl_num_neurons/NUM_THREADS + 1));
+
+      thread_data[thr_i].data_size_ = (cl_num_neurons/NUM_THREADS + 1);
+
+      /*
+      printf("UThread %ld: start: %ld size: %ld\n",
+          thread_data[thr_i].thr_id,
+          thread_data[thr_i].start_index_,
+          thread_data[thr_i].data_size_);
+          */
+
+      pthread_create(&threads[thr_i], NULL, calcLayerOutputs,
+          &thread_data[thr_i]);
+
     }
+
+    //splitting array of neurons over NUM_THREADS threads
+    //prepare the threads and data
+
+    for (size_t thr_i = cl_num_neurons % NUM_THREADS;
+        thr_i < NUM_THREADS;
+        thr_i++) {
+
+      thread_data[thr_i].thr_id = thr_i;
+
+      thread_data[thr_i].current_layer_ = current_layer;
+      thread_data[thr_i].prev_layer_ = prev_layer;
+
+      thread_data[thr_i].start_index_ = (thr_i *
+        (cl_num_neurons/NUM_THREADS)) + cl_num_neurons % NUM_THREADS;
+
+      thread_data[thr_i].data_size_ = cl_num_neurons/NUM_THREADS;
+
+      /*
+      printf("Thread %ld: start: %ld size: %ld\n",
+          thread_data[thr_i].thr_id,
+          thread_data[thr_i].start_index_,
+          thread_data[thr_i].data_size_);
+          */
+
+      pthread_create(&threads[thr_i], NULL, calcLayerOutputs,
+          &thread_data[thr_i]);
+    }
+
+    //wait for all threads to complete
+    for (size_t thr_i = 0; thr_i < NUM_THREADS; thr_i++) {
+      pthread_join(threads[thr_i], NULL);
+    }
+
   } //end for each layer
 } //end feedForwardNNet
+
+/*-----------------------------------------------------------------------*/
+/*                            CALCLAYEROUTPUTS                           */
+/*-----------------------------------------------------------------------*/
+//calculates the outputs per layer. This is a thread function
+
+void* calcLayerOutputs(void *arguments) {
+  //prepare the data
+  //split remainder of data evenly among  up to NUM_THREADS-1 workers
+
+  thread_data_t * thread_data = (thread_data_t *) arguments;
+
+  nn_layer_t* current_layer = thread_data->current_layer_;
+  nn_layer_t* prev_layer = thread_data->prev_layer_;
+
+  size_t start_neuron = thread_data->start_index_;
+  size_t end_neuron = thread_data->data_size_ + start_neuron;
+
+  size_t id = thread_data->thr_id;
+
+  for (size_t j = start_neuron; j < end_neuron; j++) { //for nodes
+
+    //printf("Thr_id: %ld neur: %ld\n", id, j);
+
+    //dot product
+    float dot_product = 0;
+
+    //since trivial use simd extensions
+    for (size_t k = 0; k < current_layer->weights_per_neuron_; k++) {
+      dot_product += current_layer->weights_[j][k] *
+        prev_layer->outputs_[k];
+    }
+
+    //calculate weighted sum
+    current_layer->weighted_sums_[j] = dot_product +
+      current_layer->biases_[j];
+
+    //calculate neuron j output
+    current_layer->outputs_[j] =
+      sigmoid(current_layer->weighted_sums_[j]);
+  }
+  return NULL;
+}
 
 /*-----------------------------------------------------------------------*/
 /*                                 VERIFY                                */

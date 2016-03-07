@@ -17,7 +17,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <util.h>
+#include <pthread.h>
 
+#define NUM_THREADS 4
 typedef struct nn_layer_t {
   size_t num_neurons_;        //num neurons in layer
   size_t weights_per_neuron_; //based on num neurons in prev layer connected
@@ -35,6 +37,13 @@ typedef struct neural_network_t {
   nn_layer_t* layers_;
 } neural_network_t;
 
+typedef struct thread_data_t {
+  nn_layer_t* current_layer_;
+  nn_layer_t* prev_layer_;
+  size_t start_index_;
+  size_t data_size_;
+  size_t thr_id;
+} thread_data_t;
 /*
  * layers: takes num layers inclusive of input and output layers
  * nodes_per_layer: takes array of sizes for each layer. should be arr of size
@@ -89,6 +98,9 @@ void verifyNNet(neural_network_t* n_net,
 //runs net input -> output for classification
 void feedForwardNNet(neural_network_t* n_net, float* const input);
 
+//calculates the outputs per layer. This is a thread function
+void* calcLayerOutputs(void* arguments);
+
 bool destroyNNet(neural_network_t* n_net);
 
 //utility function that clears out avg_weight_grads_ and avg_errors_
@@ -96,5 +108,6 @@ void clearBatchAvg(neural_network_t* n_net);
 
 //from knuth and marsaglia
 float genRandGauss();
+
 
 #endif

@@ -4,7 +4,7 @@
 #include <fcntl.h>
 #include <nn.h>
 
-#define NUM_LAYERS 3
+#define NUM_LAYERS 4
 #define INPUT_LAYER_SIZE  784 //have to make sure you can map data to inputs
 #define OUTPUT_LAYER_SIZE 10
 
@@ -16,6 +16,10 @@
 #define NUM_SAMPLES 50000
 #define VERIF_SAMPLES 10000
 
+#define NUM_EPOCHS 100
+#define ETA 3.0
+#define BATCH_SIZE 10
+
 #define TRAIN_OFFSET      0x10
 #define TRAIN_EXP_OFFSET  0x08
 
@@ -26,7 +30,7 @@ void classify(neural_network_t *n_net, float* const input_data);
 
 int main(int argc, char ** argv) {
   neural_network_t neural_net;
-  size_t layer_sizes[NUM_LAYERS] = {INPUT_LAYER_SIZE,30,OUTPUT_LAYER_SIZE};
+  size_t layer_sizes[NUM_LAYERS] = {INPUT_LAYER_SIZE,800,800,OUTPUT_LAYER_SIZE};
   //load data
 
   int input_data_fd = 0;
@@ -84,9 +88,9 @@ int main(int argc, char ** argv) {
       input_data,       //input
       expected_data,    //expected
       NUM_SAMPLES,      //#samples in data
-      10000,               //epochs
-      3.0,              //eta
-      10,               //batch size
+      NUM_EPOCHS,               //epochs
+      ETA,              //eta
+      BATCH_SIZE,               //batch size
       NULL,//input_data+NUM_SAMPLES*PICTURE_SIZE, verification input data
       NULL,//expected_data+NUM_SAMPLES*OUTPUT_LAYER_SIZE, verif expected data
       VERIF_SAMPLES);               //verification sample size

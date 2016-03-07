@@ -3,8 +3,8 @@ OBJ_EXT=o
 HEAD_EXT=h
 OBJ_HEAD_EXT=gch
 CC=gcc
-CFLAGS=-c -I. -std=c11
-LDFLAGS=-lm
+CFLAGS=-c -I. -std=c11 -pthread
+LDFLAGS=-lm -lpthread
 DFLAGS=-DDEBUG -ggdb -g3 -Wall
 RFLAGS=-O2
 DEFAULT_DEBUG=y
