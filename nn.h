@@ -39,11 +39,12 @@ typedef struct neural_network_t {
 
 typedef struct thread_data_t {
   nn_layer_t* current_layer_;
-  nn_layer_t* prev_layer_;
+  nn_layer_t* aux_layer_; //auxiliary layer (prev_layer/next_layer);
   size_t start_index_;
   size_t data_size_;
   size_t thr_id;
 } thread_data_t;
+
 /*
  * layers: takes num layers inclusive of input and output layers
  * nodes_per_layer: takes array of sizes for each layer. should be arr of size
@@ -100,6 +101,13 @@ void feedForwardNNet(neural_network_t* n_net, float* const input);
 
 //calculates the outputs per layer. This is a thread function
 void* calcLayerOutputs(void* arguments);
+
+//calculates the errors per layer. This is a thread function
+void* calcLayerErrors(void *arguments);
+
+//distributes the calculations for a layer across threads
+void distributeCalcs(nn_layer_t* current_layer, nn_layer_t* aux_layer, size_t layer_num,
+    void* (*calc_func)(void*));
 
 bool destroyNNet(neural_network_t* n_net);
 

@@ -207,7 +207,8 @@ bool sgdNNet(neural_network_t* n_net,
   } //end for epochs
 
   printf("Total time: %f seconds.\n", cpu_time);
-  printf("Epoch average completion time %f seconds.\n\n", cpu_time/(double)epochs);
+  printf("Epoch average completion time %f seconds.\n\n",
+      cpu_time/(double)epochs);
 
   return true;
 }
@@ -226,6 +227,7 @@ bool backPropNNet(neural_network_t* n_net, float* const input,
   //feedforward
   feedForwardNNet(n_net, input);
 
+  //may want to thread this eventually
   //calculate errors for output layer per neuron
   current_layer = &n_net->layers_[output_layer];
   for(size_t i = 0; i < current_layer->num_neurons_; i++) {
@@ -238,23 +240,42 @@ bool backPropNNet(neural_network_t* n_net, float* const input,
   for (size_t i = output_layer - 1; i > 0; i--) {
     current_layer = &n_net->layers_[i];
     next_layer = &n_net->layers_[i+1];
-
-    for(size_t j = 0; j < current_layer->num_neurons_; j++) {
-      float dot_product = 0;
-
-      //dot product next layer deltas with their weights
-      for(size_t k = 0; k < next_layer->num_neurons_; k++) {
-        dot_product += next_layer->weights_[k][j] * next_layer->errors_[k];
-      }
-
-      current_layer->errors_[j] = (dot_product) *
-        sigmoidPrime(current_layer->weighted_sums_[j]);
-
-    }
+    distributeCalcs(current_layer, next_layer, i, calcLayerErrors);
   } //end for each layer
 
   return true;
 } //end backProp
+
+/*-----------------------------------------------------------------------*/
+/*                             CALCLAYERERRORS                           */
+/*-----------------------------------------------------------------------*/
+//calculates the errors per layer. This is a thread function
+
+void* calcLayerErrors(void *arguments) {
+  thread_data_t * thread_data = (thread_data_t *) arguments;
+
+  nn_layer_t* current_layer = thread_data->current_layer_;
+  nn_layer_t* next_layer = thread_data->aux_layer_;
+
+  size_t start_neuron = thread_data->start_index_;
+  size_t end_neuron = thread_data->data_size_ + start_neuron;
+
+  size_t id = thread_data->thr_id;
+
+  for(size_t j = start_neuron; j < end_neuron; j++) {
+    float dot_product = 0;
+
+    //dot product next layer deltas with their weights
+    for(size_t k = 0; k < next_layer->num_neurons_; k++) {
+      dot_product += next_layer->weights_[k][j] * next_layer->errors_[k];
+    }
+
+    current_layer->errors_[j] = (dot_product) *
+      sigmoidPrime(current_layer->weighted_sums_[j]);
+  }
+
+  return NULL;
+} //end calcLayerErrors
 
 /*-----------------------------------------------------------------------*/
 /*                            FEEDFORWARD                                */
@@ -263,87 +284,20 @@ bool backPropNNet(neural_network_t* n_net, float* const input,
 //classification will be returned in the final output layer
 void feedForwardNNet(neural_network_t* n_net, float* const input) {
 
-  pthread_t threads[NUM_THREADS];
-  thread_data_t thread_data[NUM_THREADS];
-
   nn_layer_t* first_layer = &n_net->layers_[0];
+  nn_layer_t* current_layer;
+  nn_layer_t* prev_layer;
 
+  //thread this too
   //assign data to first layer of network
   for (size_t i = 0; i < first_layer->num_neurons_; i++) {
     first_layer->outputs_[i] = input[i];
   }
 
   for (size_t i = 1; i < n_net->num_layers_; i++) { //for each layer
-
-    nn_layer_t* current_layer = &n_net->layers_[i];
-    nn_layer_t* prev_layer = &n_net->layers_[i-1];
-
-    size_t cl_num_neurons = current_layer->num_neurons_;
-
-    //printf("Splitting threads for layer %ld\n", i);
-
-    //for the rest of the threads
-    //set threads with num_neurons_/NUM_THREADS + 1 if num_neurons %4 != 0
-    //if array cannot be evenly divided by 4, distribute the rest equally
-    for (size_t thr_i = 0;
-        thr_i < cl_num_neurons % NUM_THREADS;
-        thr_i++) {
-
-      thread_data[thr_i].thr_id = thr_i;
-
-      thread_data[thr_i].current_layer_ = current_layer;
-      thread_data[thr_i].prev_layer_ = prev_layer;
-
-      thread_data[thr_i].start_index_ = (thr_i *
-        (cl_num_neurons/NUM_THREADS + 1));
-
-      thread_data[thr_i].data_size_ = (cl_num_neurons/NUM_THREADS + 1);
-
-      /*
-      printf("UThread %ld: start: %ld size: %ld\n",
-          thread_data[thr_i].thr_id,
-          thread_data[thr_i].start_index_,
-          thread_data[thr_i].data_size_);
-          */
-
-      pthread_create(&threads[thr_i], NULL, calcLayerOutputs,
-          &thread_data[thr_i]);
-
-    }
-
-    //splitting array of neurons over NUM_THREADS threads
-    //prepare the threads and data
-
-    for (size_t thr_i = cl_num_neurons % NUM_THREADS;
-        thr_i < NUM_THREADS;
-        thr_i++) {
-
-      thread_data[thr_i].thr_id = thr_i;
-
-      thread_data[thr_i].current_layer_ = current_layer;
-      thread_data[thr_i].prev_layer_ = prev_layer;
-
-      thread_data[thr_i].start_index_ = (thr_i *
-        (cl_num_neurons/NUM_THREADS)) + cl_num_neurons % NUM_THREADS;
-
-      thread_data[thr_i].data_size_ = cl_num_neurons/NUM_THREADS;
-
-      /*
-      printf("Thread %ld: start: %ld size: %ld\n",
-          thread_data[thr_i].thr_id,
-          thread_data[thr_i].start_index_,
-          thread_data[thr_i].data_size_);
-          */
-
-      pthread_create(&threads[thr_i], NULL, calcLayerOutputs,
-          &thread_data[thr_i]);
-    }
-
-    //wait for all threads to complete
-    for (size_t thr_i = 0; thr_i < NUM_THREADS; thr_i++) {
-      pthread_join(threads[thr_i], NULL);
-    }
-
+    current_layer = &n_net->layers_[i];
+    prev_layer = &n_net->layers_[i-1];
+    distributeCalcs(current_layer, prev_layer, i, calcLayerOutputs);
   } //end for each layer
 } //end feedForwardNNet
 
@@ -353,13 +307,11 @@ void feedForwardNNet(neural_network_t* n_net, float* const input) {
 //calculates the outputs per layer. This is a thread function
 
 void* calcLayerOutputs(void *arguments) {
-  //prepare the data
-  //split remainder of data evenly among  up to NUM_THREADS-1 workers
 
   thread_data_t * thread_data = (thread_data_t *) arguments;
 
   nn_layer_t* current_layer = thread_data->current_layer_;
-  nn_layer_t* prev_layer = thread_data->prev_layer_;
+  nn_layer_t* prev_layer = thread_data->aux_layer_;
 
   size_t start_neuron = thread_data->start_index_;
   size_t end_neuron = thread_data->data_size_ + start_neuron;
@@ -367,7 +319,6 @@ void* calcLayerOutputs(void *arguments) {
   size_t id = thread_data->thr_id;
 
   for (size_t j = start_neuron; j < end_neuron; j++) { //for nodes
-
     //printf("Thr_id: %ld neur: %ld\n", id, j);
 
     //dot product
@@ -390,6 +341,86 @@ void* calcLayerOutputs(void *arguments) {
   return NULL;
 }
 
+/*-----------------------------------------------------------------------*/
+/*                            DISTRIBUTECALCS                            */
+/*-----------------------------------------------------------------------*/
+//distributes the calculations for a layer across threads
+void distributeCalcs(nn_layer_t* current_layer,
+    nn_layer_t* aux_layer,
+    size_t layer_num,
+    void* (*calc_func)(void*)) {
+
+    pthread_t threads[NUM_THREADS];
+    thread_data_t thread_data[NUM_THREADS];
+
+    size_t cl_num_neurons = current_layer->num_neurons_;
+
+    //printf("Splitting threads for layer %ld\n", i);
+
+    //splitting array of neurons over NUM_THREADS threads
+    //prepare the threads and data
+
+    //set threads with num_neurons_/NUM_THREADS + 1 if num_neurons %4 != 0
+    //if array cannot be evenly divided by 4, distribute the rest equally
+    for (size_t thr_i = 0;
+        thr_i < cl_num_neurons % NUM_THREADS;
+        thr_i++) {
+
+      thread_data[thr_i].thr_id = thr_i;
+
+      thread_data[thr_i].current_layer_ = current_layer;
+      thread_data[thr_i].aux_layer_ = aux_layer;
+
+      thread_data[thr_i].start_index_ = (thr_i *
+        (cl_num_neurons/NUM_THREADS + 1));
+
+      thread_data[thr_i].data_size_ = (cl_num_neurons/NUM_THREADS + 1);
+
+      /*
+      printf("UThread %ld: start: %ld size: %ld\n",
+          thread_data[thr_i].thr_id,
+          thread_data[thr_i].start_index_,
+          thread_data[thr_i].data_size_);
+          */
+
+      pthread_create(&threads[thr_i], NULL, calc_func,
+          &thread_data[thr_i]);
+
+    }
+
+    //for the rest of the threads
+    //split remainder of data evenly among  up to NUM_THREADS-1 workers
+    for (size_t thr_i = cl_num_neurons % NUM_THREADS;
+        thr_i < NUM_THREADS;
+        thr_i++) {
+
+      thread_data[thr_i].thr_id = thr_i;
+
+      thread_data[thr_i].current_layer_ = current_layer;
+      thread_data[thr_i].aux_layer_ = aux_layer;
+
+      thread_data[thr_i].start_index_ = (thr_i *
+        (cl_num_neurons/NUM_THREADS)) + cl_num_neurons % NUM_THREADS;
+
+      thread_data[thr_i].data_size_ = cl_num_neurons/NUM_THREADS;
+
+      /*
+      printf("Thread %ld: start: %ld size: %ld\n",
+          thread_data[thr_i].thr_id,
+          thread_data[thr_i].start_index_,
+          thread_data[thr_i].data_size_);
+          */
+
+      pthread_create(&threads[thr_i], NULL, calc_func,
+          &thread_data[thr_i]);
+    }
+
+    //wait for all threads to complete
+    for (size_t thr_i = 0; thr_i < NUM_THREADS; thr_i++) {
+      pthread_join(threads[thr_i], NULL);
+    }
+
+} //end distributeCalcs
 /*-----------------------------------------------------------------------*/
 /*                                 VERIFY                                */
 /*-----------------------------------------------------------------------*/
