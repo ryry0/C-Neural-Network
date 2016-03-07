@@ -27,11 +27,7 @@ typedef struct nn_layer_t {
   float* weighted_sums_;     //weighted sum of neuron z + bias
   float** weights_;          //2d array rows for each neuron
 
-  float** avg_weight_grads_; //average gradients for every weight
-
   float* errors_;            //neuron error delta
-  float* avg_errors_;        //stores avg error over a mini batch
-
 } nn_layer_t;
 
 typedef struct neural_network_t {
