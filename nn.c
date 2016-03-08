@@ -185,18 +185,13 @@ bool sgdNNet(neural_network_t* n_net,
         nn_layer_t * current_layer = &n_net->layers_[k];
         nn_layer_t * prev_layer = &n_net->layers_[k-1];
 
-        for (size_t n = 0; n < current_layer->num_neurons_; n++) {
-
-          current_layer->biases_[n] -= (eta/(float)mini_batch_size) *
-            current_layer->errors_[n];
-
-          for (size_t m = 0; m < current_layer->weights_per_neuron_; m++) {
-            current_layer->weights_[n][m] -= (eta/(float)mini_batch_size) *
-              (current_layer->errors_[n] * prev_layer->outputs_[m]);
-          }
-        } //end for neurons
+        distributeCalcs(current_layer,
+            prev_layer,
+            k,
+            eta,
+            mini_batch_size,
+            calcLayerSGD);
       } //end for each layer
-
     } //end for mini batch
 
     if ((verif_samples != NULL) && (verif_expected != NULL))
@@ -212,6 +207,38 @@ bool sgdNNet(neural_network_t* n_net,
 
   return true;
 }
+
+
+/*-----------------------------------------------------------------------*/
+/*                             CALCLAYERSGD                              */
+/*-----------------------------------------------------------------------*/
+//calculates the errors per layer. This is a thread function
+
+void* calcLayerSGD(void *arguments) {
+  thread_data_t * thread_data = (thread_data_t *) arguments;
+
+  nn_layer_t* current_layer = thread_data->current_layer_;
+  nn_layer_t* prev_layer = thread_data->aux_layer_;
+
+  size_t start_neuron = thread_data->start_index_;
+  size_t end_neuron = thread_data->data_size_ + start_neuron;
+
+  size_t id = thread_data->thr_id;
+
+  float eta = thread_data->eta_;
+  size_t mini_batch_size = thread_data->mini_batch_size_;
+
+  for (size_t n = start_neuron; n < end_neuron; n++) {
+
+    current_layer->biases_[n] -= (eta/(float)mini_batch_size) *
+      current_layer->errors_[n];
+
+    for (size_t m = 0; m < current_layer->weights_per_neuron_; m++) {
+      current_layer->weights_[n][m] -= (eta/(float)mini_batch_size) *
+        (current_layer->errors_[n] * prev_layer->outputs_[m]);
+    }
+  } //end for neurons
+} //end calcLayerSGD
 
 /*-----------------------------------------------------------------------*/
 /*                          BACKPROPAGATION                              */
@@ -240,7 +267,7 @@ bool backPropNNet(neural_network_t* n_net, float* const input,
   for (size_t i = output_layer - 1; i > 0; i--) {
     current_layer = &n_net->layers_[i];
     next_layer = &n_net->layers_[i+1];
-    distributeCalcs(current_layer, next_layer, i, calcLayerErrors);
+    distributeCalcs(current_layer, next_layer, i, 0, 0, calcLayerErrors);
   } //end for each layer
 
   return true;
@@ -297,7 +324,7 @@ void feedForwardNNet(neural_network_t* n_net, float* const input) {
   for (size_t i = 1; i < n_net->num_layers_; i++) { //for each layer
     current_layer = &n_net->layers_[i];
     prev_layer = &n_net->layers_[i-1];
-    distributeCalcs(current_layer, prev_layer, i, calcLayerOutputs);
+    distributeCalcs(current_layer, prev_layer, i, 0, 0, calcLayerOutputs);
   } //end for each layer
 } //end feedForwardNNet
 
@@ -348,6 +375,8 @@ void* calcLayerOutputs(void *arguments) {
 void distributeCalcs(nn_layer_t* current_layer,
     nn_layer_t* aux_layer,
     size_t layer_num,
+    float eta,
+    size_t mini_batch_size,
     void* (*calc_func)(void*)) {
 
     pthread_t threads[NUM_THREADS];
@@ -370,6 +399,9 @@ void distributeCalcs(nn_layer_t* current_layer,
 
       thread_data[thr_i].current_layer_ = current_layer;
       thread_data[thr_i].aux_layer_ = aux_layer;
+
+      thread_data[thr_i].eta_ = eta;
+      thread_data[thr_i].mini_batch_size_ = mini_batch_size;
 
       thread_data[thr_i].start_index_ = (thr_i *
         (cl_num_neurons/NUM_THREADS + 1));
@@ -398,6 +430,9 @@ void distributeCalcs(nn_layer_t* current_layer,
 
       thread_data[thr_i].current_layer_ = current_layer;
       thread_data[thr_i].aux_layer_ = aux_layer;
+
+      thread_data[thr_i].eta_ = eta;
+      thread_data[thr_i].mini_batch_size_ = mini_batch_size;
 
       thread_data[thr_i].start_index_ = (thr_i *
         (cl_num_neurons/NUM_THREADS)) + cl_num_neurons % NUM_THREADS;

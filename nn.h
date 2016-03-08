@@ -43,6 +43,8 @@ typedef struct thread_data_t {
   size_t start_index_;
   size_t data_size_;
   size_t thr_id;
+  float  eta_;
+  size_t mini_batch_size_;
 } thread_data_t;
 
 /*
@@ -99,14 +101,21 @@ void verifyNNet(neural_network_t* n_net,
 //runs net input -> output for classification
 void feedForwardNNet(neural_network_t* n_net, float* const input);
 
-//calculates the outputs per layer. This is a thread function
+//calculates the outputs per layer. This is a thread function.
 void* calcLayerOutputs(void* arguments);
 
-//calculates the errors per layer. This is a thread function
+//calculates the errors per layer. This is a thread function.
 void* calcLayerErrors(void *arguments);
 
+//Performs stochastic gradient descent on a layer. This is a thread function.
+void* calcLayerSGD (void *arguments);
+
 //distributes the calculations for a layer across threads
-void distributeCalcs(nn_layer_t* current_layer, nn_layer_t* aux_layer, size_t layer_num,
+void distributeCalcs(nn_layer_t* current_layer,
+    nn_layer_t* aux_layer,
+    size_t layer_num,
+    float eta_,
+    size_t mini_batch_size_,
     void* (*calc_func)(void*));
 
 bool destroyNNet(neural_network_t* n_net);

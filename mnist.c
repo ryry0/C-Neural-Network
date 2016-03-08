@@ -16,7 +16,7 @@
 #define NUM_SAMPLES 50000
 #define VERIF_SAMPLES 10000
 
-#define NUM_EPOCHS 100
+#define NUM_EPOCHS 1000
 #define ETA 3.0
 #define BATCH_SIZE 10
 
@@ -30,7 +30,8 @@ void classify(neural_network_t *n_net, float* const input_data);
 
 int main(int argc, char ** argv) {
   neural_network_t neural_net;
-  size_t layer_sizes[NUM_LAYERS] = {INPUT_LAYER_SIZE,800,800,OUTPUT_LAYER_SIZE};
+  size_t layer_sizes[NUM_LAYERS] = {INPUT_LAYER_SIZE,800,
+    800,OUTPUT_LAYER_SIZE};
   //load data
 
   int input_data_fd = 0;
