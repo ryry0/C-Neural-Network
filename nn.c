@@ -100,7 +100,8 @@ bool initNNet(neural_network_t * n_net, size_t num_layers,
 
       //initialize k weights for the particular neuron, j
       for (size_t k = 0; k < current_layer->weights_per_neuron_; k++) {
-        current_layer->weights_[j][k] = genRandGauss();
+        current_layer->weights_[j][k] = genRandGauss() *
+          1.0f/sqrt(current_layer->weights_per_neuron_);
       }
     } //end for each neuron
   } //end for each layer
